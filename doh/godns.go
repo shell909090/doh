@@ -1,26 +1,24 @@
 package main
 
 import (
-	"time"
-
 	"github.com/miekg/dns"
 )
 
-type DnsProfile struct {
+type DnsClient struct {
 	Type   string
 	Net    string
 	Server string
 	client *dns.Client
 }
 
-func (prof *DnsProfile) Init() (err error) {
-	prof.client = &dns.Client{
-		Net: prof.Net,
+func (client *DnsClient) Init() (err error) {
+	client.client = &dns.Client{
+		Net: client.Net,
 	}
 	return
 }
 
-func (prof *DnsProfile) Exchange(quiz *dns.Msg) (ans *dns.Msg, rtt time.Duration, err error) {
-	ans, rtt, err = prof.client.Exchange(quiz, prof.Server)
+func (client *DnsClient) Exchange(quiz *dns.Msg) (ans *dns.Msg, err error) {
+	ans, _, err = client.client.Exchange(quiz, client.Server)
 	return
 }

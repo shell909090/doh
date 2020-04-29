@@ -6,6 +6,8 @@
 ## X-URL: 
 LEVEL=NOTICE
 
+all: clean build
+
 clean:
 	rm -rf bin pkg gopath debuild *.log
 
@@ -13,7 +15,7 @@ build:
 	mkdir -p gopath/src/github.com/shell909090/
 	ln -s "$$PWD" gopath/src/github.com/shell909090/doh
 	mkdir -p bin
-	GOPATH="$$PWD/gopath":"$$GOPATH" go build -o bin/goproxy github.com/shell909090/doh/doh
+	GOPATH="$$PWD/gopath":"$$GOPATH" go build -o bin/doh github.com/shell909090/doh/doh
 	rm -rf gopath
 
 

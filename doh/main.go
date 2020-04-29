@@ -7,24 +7,29 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
-	"time"
 
 	"github.com/miekg/dns"
 	logging "github.com/op/go-logging"
 )
 
 type Exchanger interface {
-	Exchange(quiz *dns.Msg) (ans *dns.Msg, rtt time.Duration, err error)
+	Init() (err error)
+	Exchange(quiz *dns.Msg) (ans *dns.Msg, err error)
 }
 
 type Profile map[string]interface{}
 
 type Config struct {
-	Logfile  string
-	Loglevel string
-	Input    string
-	Output   Profile
+	Logfile    string
+	Loglevel   string
+	InputType  string `json:"input-type"`
+	InputURL   string `json:"input-url"`
+	Input      Profile
+	OutputType string `json:"output-type"`
+	OutputURL  string `json:"output-url"`
+	Output     Profile
 }
 
 var (
@@ -49,7 +54,7 @@ func SetLogging(logfile, loglevel string) (err error) {
 	file = os.Stdout
 
 	if loglevel == "" {
-		loglevel = "INFO"
+		loglevel = "WARNING"
 	}
 	if logfile != "" {
 		file, err = os.OpenFile(logfile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0600)
@@ -68,43 +73,51 @@ func SetLogging(logfile, loglevel string) (err error) {
 	return
 }
 
-func CreateOutput(profile Profile) (xchg Exchanger, err error) {
-	v, ok := profile["type"]
-	if !ok {
-		err = ErrConfigParse
-		return
-	}
-	vs, ok := v.(string)
-	if !ok {
-		err = ErrConfigParse
-		return
-	}
-	sprofile, err := json.Marshal(profile)
-	if err != nil {
-		logger.Error(err.Error())
-		return
-	}
-	switch vs {
-	case "dns":
-		profdns := &DnsProfile{}
-		err = json.Unmarshal(sprofile, &profdns)
+func CreateOutput(cfg *Config) (xchg Exchanger, err error) {
+	switch cfg.OutputType {
+	case "dns", "":
+		var u *url.URL
+		u, err = url.Parse(cfg.OutputURL)
 		if err != nil {
 			logger.Error(err.Error())
 			return
 		}
-		logger.Debugf("prof dns: %+v", profdns)
-		profdns.Init()
-		xchg = profdns
-	case "doh":
+		xchg = &DnsClient{
+			Net:    u.Scheme,
+			Server: u.Host,
+		}
+	case "google":
+		xchg = &GoogleClient{
+			URL: cfg.OutputURL,
+		}
+	case "rfc8484":
+		xchg = &Rfc8484Client{
+			URL: cfg.OutputURL,
+		}
 	default:
+		err = ErrConfigParse
+		return
 	}
+
+	sprofile, err := json.Marshal(cfg.Output)
+	if err != nil {
+		logger.Error(err.Error())
+		return
+	}
+	err = json.Unmarshal(sprofile, xchg)
+	if err != nil {
+		logger.Error(err.Error())
+		return
+	}
+
+	err = xchg.Init()
 	return
 }
 
 func QueryDN(xchg Exchanger, dn string) (err error) {
 	quiz := &dns.Msg{}
 	quiz.SetQuestion(dns.Fqdn(dn), dns.TypeA)
-	ans, _, err := xchg.Exchange(quiz)
+	ans, err := xchg.Exchange(quiz)
 	if err != nil {
 		logger.Error(err.Error())
 		return
@@ -115,20 +128,39 @@ func QueryDN(xchg Exchanger, dn string) (err error) {
 
 func main() {
 	var ConfigFile string
+	var Loglevel string
 	var GoProfile string
+	var Type string
+	var URL string
 	var Query bool
-	flag.StringVar(&ConfigFile, "config", "doh.json", "config file")
-	flag.StringVar(&GoProfile, "go profile", "", "run profile")
+	flag.StringVar(&ConfigFile, "config", "", "config file")
+	flag.StringVar(&Loglevel, "loglevel", "", "log level")
+	flag.StringVar(&GoProfile, "profile", "", "run profile")
 	flag.BoolVar(&Query, "query", true, "query")
+	flag.StringVar(&Type, "type", "", "output type")
+	flag.StringVar(&URL, "url", "", "output url")
 	flag.Parse()
 
 	cfg := &Config{}
-	err := LoadJson(ConfigFile, cfg)
-	if err != nil {
-		log.Fatal(err)
-		return
+	if ConfigFile != "" {
+		err := LoadJson(ConfigFile, cfg)
+		if err != nil {
+			log.Fatal(err)
+			return
+		}
+	}
+
+	if Loglevel != "" {
+		cfg.Loglevel = Loglevel
 	}
 	SetLogging(cfg.Logfile, cfg.Loglevel)
+
+	if Type != "" {
+		cfg.OutputType = Type
+	}
+	if URL != "" {
+		cfg.OutputURL = URL
+	}
 
 	if GoProfile != "" {
 		go func() {
@@ -139,7 +171,12 @@ func main() {
 	}
 
 	logger.Debugf("config: %+v", cfg)
-	xchg, err := CreateOutput(cfg.Output)
+	xchg, err := CreateOutput(cfg)
+	if err != nil {
+		logger.Error(err.Error())
+		return
+	}
+	logger.Debugf("exchanger: %+v", xchg)
 
 	if Query {
 		logger.Debugf("domains: %+v", flag.Args())
