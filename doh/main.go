@@ -120,16 +120,22 @@ func CreateOutput(cfg *Config) (client Client, err error) {
 }
 
 func CreateInput(cfg *Config, client Client) (srv Server, err error) {
+	var u *url.URL
+	u, err = url.Parse(cfg.InputURL)
+	if err != nil {
+		logger.Error(err.Error())
+		return
+	}
 	switch cfg.InputProtocol {
 	case "dns", "":
-		var u *url.URL
-		u, err = url.Parse(cfg.InputURL)
-		if err != nil {
-			logger.Error(err.Error())
-			return
-		}
 		srv = &DnsServer{
 			Net:    u.Scheme,
+			Addr:   u.Host,
+			Client: client,
+		}
+	case "doh":
+		srv = &DoHServer{
+			Scheme: u.Scheme,
 			Addr:   u.Host,
 			Client: client,
 		}
@@ -160,6 +166,7 @@ func main() {
 	var Logfile string
 	var GoProfile string
 	var Query bool
+	var Serve string
 	var Listen string
 	var Protocol string
 	var URL string
@@ -168,6 +175,7 @@ func main() {
 	flag.StringVar(&Loglevel, "loglevel", "", "log level")
 	flag.StringVar(&GoProfile, "profile", "", "run profile")
 	flag.BoolVar(&Query, "query", false, "query")
+	flag.StringVar(&Serve, "serve", "", "input protocol")
 	flag.StringVar(&Listen, "listen", "", "input listen address")
 	flag.StringVar(&Protocol, "protocol", "", "output protocol")
 	flag.StringVar(&URL, "url", "", "output url")
@@ -190,6 +198,9 @@ func main() {
 	}
 	SetLogging(cfg.Logfile, cfg.Loglevel)
 
+	if Serve != "" {
+		cfg.InputProtocol = Serve
+	}
 	if Listen != "" {
 		cfg.InputURL = Listen
 	}
