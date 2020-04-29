@@ -14,22 +14,27 @@ import (
 	logging "github.com/op/go-logging"
 )
 
-type Exchanger interface {
+type Client interface {
 	Init() (err error)
 	Exchange(quiz *dns.Msg) (ans *dns.Msg, err error)
+}
+
+type Server interface {
+	Init() (err error)
+	Run() (err error)
 }
 
 type Profile map[string]interface{}
 
 type Config struct {
-	Logfile    string
-	Loglevel   string
-	InputType  string `json:"input-type"`
-	InputURL   string `json:"input-url"`
-	Input      Profile
-	OutputType string `json:"output-type"`
-	OutputURL  string `json:"output-url"`
-	Output     Profile
+	Logfile        string
+	Loglevel       string
+	InputProtocol  string `json:"input-protocol"`
+	InputURL       string `json:"input-url"`
+	Input          Profile
+	OutputProtocol string `json:"output-protocol"`
+	OutputURL      string `json:"output-url"`
+	Output         Profile
 }
 
 var (
@@ -73,8 +78,8 @@ func SetLogging(logfile, loglevel string) (err error) {
 	return
 }
 
-func CreateOutput(cfg *Config) (xchg Exchanger, err error) {
-	switch cfg.OutputType {
+func CreateOutput(cfg *Config) (client Client, err error) {
+	switch cfg.OutputProtocol {
 	case "dns", "":
 		var u *url.URL
 		u, err = url.Parse(cfg.OutputURL)
@@ -82,16 +87,16 @@ func CreateOutput(cfg *Config) (xchg Exchanger, err error) {
 			logger.Error(err.Error())
 			return
 		}
-		xchg = &DnsClient{
+		client = &DnsClient{
 			Net:    u.Scheme,
 			Server: u.Host,
 		}
 	case "google":
-		xchg = &GoogleClient{
+		client = &GoogleClient{
 			URL: cfg.OutputURL,
 		}
 	case "rfc8484":
-		xchg = &Rfc8484Client{
+		client = &Rfc8484Client{
 			URL: cfg.OutputURL,
 		}
 	default:
@@ -104,20 +109,43 @@ func CreateOutput(cfg *Config) (xchg Exchanger, err error) {
 		logger.Error(err.Error())
 		return
 	}
-	err = json.Unmarshal(sprofile, xchg)
+	err = json.Unmarshal(sprofile, client)
 	if err != nil {
 		logger.Error(err.Error())
 		return
 	}
 
-	err = xchg.Init()
+	err = client.Init()
 	return
 }
 
-func QueryDN(xchg Exchanger, dn string) (err error) {
+func CreateInput(cfg *Config, client Client) (srv Server, err error) {
+	switch cfg.InputProtocol {
+	case "dns", "":
+		var u *url.URL
+		u, err = url.Parse(cfg.InputURL)
+		if err != nil {
+			logger.Error(err.Error())
+			return
+		}
+		srv = &DnsServer{
+			Net:    u.Scheme,
+			Addr:   u.Host,
+			Client: client,
+		}
+	default:
+		err = ErrConfigParse
+		return
+	}
+
+	err = srv.Init()
+	return
+}
+
+func QueryDN(client Client, dn string) (err error) {
 	quiz := &dns.Msg{}
 	quiz.SetQuestion(dns.Fqdn(dn), dns.TypeA)
-	ans, err := xchg.Exchange(quiz)
+	ans, err := client.Exchange(quiz)
 	if err != nil {
 		logger.Error(err.Error())
 		return
@@ -129,15 +157,19 @@ func QueryDN(xchg Exchanger, dn string) (err error) {
 func main() {
 	var ConfigFile string
 	var Loglevel string
+	var Logfile string
 	var GoProfile string
-	var Type string
-	var URL string
 	var Query bool
+	var Listen string
+	var Protocol string
+	var URL string
 	flag.StringVar(&ConfigFile, "config", "", "config file")
+	flag.StringVar(&Logfile, "logfile", "", "log file")
 	flag.StringVar(&Loglevel, "loglevel", "", "log level")
 	flag.StringVar(&GoProfile, "profile", "", "run profile")
-	flag.BoolVar(&Query, "query", true, "query")
-	flag.StringVar(&Type, "type", "", "output type")
+	flag.BoolVar(&Query, "query", false, "query")
+	flag.StringVar(&Listen, "listen", "", "input listen address")
+	flag.StringVar(&Protocol, "protocol", "", "output protocol")
 	flag.StringVar(&URL, "url", "", "output url")
 	flag.Parse()
 
@@ -150,13 +182,19 @@ func main() {
 		}
 	}
 
+	if Logfile != "" {
+		cfg.Logfile = Logfile
+	}
 	if Loglevel != "" {
 		cfg.Loglevel = Loglevel
 	}
 	SetLogging(cfg.Logfile, cfg.Loglevel)
 
-	if Type != "" {
-		cfg.OutputType = Type
+	if Listen != "" {
+		cfg.InputURL = Listen
+	}
+	if Protocol != "" {
+		cfg.OutputProtocol = Protocol
 	}
 	if URL != "" {
 		cfg.OutputURL = URL
@@ -171,18 +209,29 @@ func main() {
 	}
 
 	logger.Debugf("config: %+v", cfg)
-	xchg, err := CreateOutput(cfg)
+	client, err := CreateOutput(cfg)
 	if err != nil {
 		logger.Error(err.Error())
 		return
 	}
-	logger.Debugf("exchanger: %+v", xchg)
+	logger.Debugf("client: %+v", client)
 
 	if Query {
 		logger.Debugf("domains: %+v", flag.Args())
 		for _, dn := range flag.Args() {
-			QueryDN(xchg, dn)
+			QueryDN(client, dn)
+		}
+	} else {
+		var srv Server
+		srv, err = CreateInput(cfg, client)
+		if err != nil {
+			logger.Error(err.Error())
+			return
+		}
+		err = srv.Run()
+		if err != nil {
+			logger.Error(err.Error())
+			return
 		}
 	}
-
 }
