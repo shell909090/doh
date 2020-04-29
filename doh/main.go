@@ -31,6 +31,8 @@ type Config struct {
 	Loglevel       string
 	InputProtocol  string `json:"input-protocol"`
 	InputURL       string `json:"input-url"`
+	InputCertFile  string `json:"input-cert-file"`
+	InputKeyFile   string `json:"input-key-file"`
 	Input          Profile
 	OutputProtocol string `json:"output-protocol"`
 	OutputURL      string `json:"output-url"`
@@ -135,9 +137,11 @@ func CreateInput(cfg *Config, client Client) (srv Server, err error) {
 		}
 	case "doh":
 		srv = &DoHServer{
-			Scheme: u.Scheme,
-			Addr:   u.Host,
-			Client: client,
+			Scheme:   u.Scheme,
+			Addr:     u.Host,
+			CertFile: cfg.InputCertFile,
+			KeyFile:  cfg.InputKeyFile,
+			Client:   client,
 		}
 	default:
 		err = ErrConfigParse
@@ -168,6 +172,8 @@ func main() {
 	var Query bool
 	var Serve string
 	var Listen string
+	var CertFile string
+	var KeyFile string
 	var Protocol string
 	var URL string
 	flag.StringVar(&ConfigFile, "config", "", "config file")
@@ -177,6 +183,8 @@ func main() {
 	flag.BoolVar(&Query, "query", false, "query")
 	flag.StringVar(&Serve, "serve", "", "input protocol")
 	flag.StringVar(&Listen, "listen", "", "input listen address")
+	flag.StringVar(&CertFile, "cert", "", "input cert file")
+	flag.StringVar(&KeyFile, "key", "", "input key file")
 	flag.StringVar(&Protocol, "protocol", "", "output protocol")
 	flag.StringVar(&URL, "url", "", "output url")
 	flag.Parse()

@@ -140,10 +140,12 @@ func (handler *Rfc8484Handler) ServeHTTP(w http.ResponseWriter, req *http.Reques
 }
 
 type DoHServer struct {
-	Scheme string
-	Addr   string
-	Client Client
-	mux    *http.ServeMux
+	Scheme   string
+	Addr     string
+	CertFile string
+	KeyFile  string
+	Client   Client
+	mux      *http.ServeMux
 }
 
 func (srv *DoHServer) Init() (err error) {
@@ -157,6 +159,11 @@ func (srv *DoHServer) Run() (err error) {
 		Addr:    srv.Addr,
 		Handler: srv.mux,
 	}
-	err = server.ListenAndServe()
+	switch srv.Scheme {
+	case "http":
+		err = server.ListenAndServe()
+	case "https", "":
+		err = server.ListenAndServeTLS(srv.CertFile, srv.KeyFile)
+	}
 	return
 }
