@@ -5,7 +5,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -24,8 +23,6 @@ type Server interface {
 	Run() (err error)
 }
 
-type Profile map[string]interface{}
-
 type Config struct {
 	Logfile        string
 	Loglevel       string
@@ -33,10 +30,9 @@ type Config struct {
 	InputURL       string `json:"input-url"`
 	InputCertFile  string `json:"input-cert-file"`
 	InputKeyFile   string `json:"input-key-file"`
-	Input          Profile
 	OutputProtocol string `json:"output-protocol"`
 	OutputURL      string `json:"output-url"`
-	Output         Profile
+	OutputInsecure bool   `json:"output-insecure"`
 }
 
 var (
@@ -95,28 +91,18 @@ func CreateOutput(cfg *Config) (client Client, err error) {
 		}
 	case "google":
 		client = &GoogleClient{
-			URL: cfg.OutputURL,
+			URL:      cfg.OutputURL,
+			Insecure: cfg.OutputInsecure,
 		}
 	case "rfc8484":
 		client = &Rfc8484Client{
-			URL: cfg.OutputURL,
+			URL:      cfg.OutputURL,
+			Insecure: cfg.OutputInsecure,
 		}
 	default:
 		err = ErrConfigParse
 		return
 	}
-
-	sprofile, err := json.Marshal(cfg.Output)
-	if err != nil {
-		logger.Error(err.Error())
-		return
-	}
-	err = json.Unmarshal(sprofile, client)
-	if err != nil {
-		logger.Error(err.Error())
-		return
-	}
-
 	err = client.Init()
 	return
 }
@@ -167,64 +153,38 @@ func QueryDN(client Client, dn string) (err error) {
 func main() {
 	var ConfigFile string
 	var Loglevel string
-	var Logfile string
-	var GoProfile string
+	var Profile string
 	var Query bool
-	var Serve string
-	var Listen string
-	var CertFile string
-	var KeyFile string
 	var Protocol string
 	var URL string
+	var Insecure bool
 	flag.StringVar(&ConfigFile, "config", "", "config file")
-	flag.StringVar(&Logfile, "logfile", "", "log file")
 	flag.StringVar(&Loglevel, "loglevel", "", "log level")
-	flag.StringVar(&GoProfile, "profile", "", "run profile")
-	flag.BoolVar(&Query, "query", false, "query")
-	flag.StringVar(&Serve, "serve", "", "input protocol")
-	flag.StringVar(&Listen, "listen", "", "input listen address")
-	flag.StringVar(&CertFile, "cert", "", "input cert file")
-	flag.StringVar(&KeyFile, "key", "", "input key file")
+	flag.StringVar(&Profile, "profile", "", "run profile")
+	flag.BoolVar(&Query, "q", false, "query")
 	flag.StringVar(&Protocol, "protocol", "", "output protocol")
 	flag.StringVar(&URL, "url", "", "output url")
+	flag.BoolVar(&Insecure, "insecure", false, "output insecure")
 	flag.Parse()
 
 	cfg := &Config{}
 	if ConfigFile != "" {
-		err := LoadJson(ConfigFile, cfg)
-		if err != nil {
-			log.Fatal(err)
-			return
-		}
+		LoadJson(ConfigFile, cfg)
 	}
 
-	if Logfile != "" {
-		cfg.Logfile = Logfile
-	}
 	if Loglevel != "" {
 		cfg.Loglevel = Loglevel
 	}
 	SetLogging(cfg.Logfile, cfg.Loglevel)
 
-	if Serve != "" {
-		cfg.InputProtocol = Serve
-	}
-	if Listen != "" {
-		cfg.InputURL = Listen
-	}
 	if Protocol != "" {
 		cfg.OutputProtocol = Protocol
 	}
 	if URL != "" {
 		cfg.OutputURL = URL
 	}
-
-	if GoProfile != "" {
-		go func() {
-			logger.Infof("golang profile %s", GoProfile)
-			logger.Infof("golang profile result: %s",
-				http.ListenAndServe(GoProfile, nil))
-		}()
+	if Insecure {
+		cfg.OutputInsecure = Insecure
 	}
 
 	logger.Debugf("config: %+v", cfg)
@@ -233,24 +193,38 @@ func main() {
 		logger.Error(err.Error())
 		return
 	}
-	logger.Debugf("client: %+v", client)
 
-	if Query {
-		logger.Debugf("domains: %+v", flag.Args())
+	switch {
+	case Query:
 		for _, dn := range flag.Args() {
 			QueryDN(client, dn)
 		}
-	} else {
+
+	case cfg.InputProtocol != "" && cfg.InputURL != "":
+		if Profile != "" {
+			go func() {
+				logger.Infof("golang profile %s", Profile)
+				logger.Infof("golang profile result: %s",
+					http.ListenAndServe(Profile, nil))
+			}()
+		}
+
 		var srv Server
 		srv, err = CreateInput(cfg, client)
 		if err != nil {
 			logger.Error(err.Error())
 			return
 		}
+
 		err = srv.Run()
 		if err != nil {
 			logger.Error(err.Error())
 			return
 		}
+
+	default:
+		logger.Error("no query nor server, quit.")
+		return
 	}
+	return
 }

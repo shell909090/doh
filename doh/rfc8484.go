@@ -2,6 +2,8 @@ package main
 
 import (
 	"bytes"
+	"crypto/tls"
+	"encoding/base64"
 	"errors"
 	"io"
 	"io/ioutil"
@@ -27,12 +29,16 @@ func WriteFull(w io.Writer, b []byte) (err error) {
 
 type Rfc8484Client struct {
 	URL       string
-	transport http.RoundTripper
+	Insecure  bool
+	transport *http.Transport
 }
 
 func (client *Rfc8484Client) Init() (err error) {
 	client.transport = &http.Transport{
 		Proxy: http.ProxyFromEnvironment,
+	}
+	if client.Insecure {
+		client.transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 	}
 	return
 }
@@ -90,11 +96,26 @@ func (handler *Rfc8484Handler) ServeHTTP(w http.ResponseWriter, req *http.Reques
 	var err error
 	defer req.Body.Close()
 
-	var bbody []byte
+	var bdns []byte
 	switch req.Method {
 	case "GET":
+		err = req.ParseForm()
+		if err != nil {
+			logger.Error(err.Error())
+			w.WriteHeader(400)
+			return
+		}
+
+		b64dns := req.Form.Get("dns")
+		bdns, err = base64.StdEncoding.DecodeString(b64dns)
+		if err != nil {
+			logger.Error(err.Error())
+			w.WriteHeader(400)
+			return
+		}
+
 	case "POST":
-		bbody, err = ioutil.ReadAll(req.Body)
+		bdns, err = ioutil.ReadAll(req.Body)
 		if err != nil {
 			logger.Error(err.Error())
 			w.WriteHeader(400)
@@ -106,7 +127,7 @@ func (handler *Rfc8484Handler) ServeHTTP(w http.ResponseWriter, req *http.Reques
 	}
 
 	quiz := &dns.Msg{}
-	err = quiz.Unpack(bbody)
+	err = quiz.Unpack(bdns)
 	if err != nil {
 		logger.Error(err.Error())
 		w.WriteHeader(400)
@@ -122,20 +143,22 @@ func (handler *Rfc8484Handler) ServeHTTP(w http.ResponseWriter, req *http.Reques
 		return
 	}
 
-	bbody, err = ans.Pack()
+	bdns, err = ans.Pack()
 	if err != nil {
 		logger.Error(err.Error())
 		w.WriteHeader(502)
 		return
 	}
 
-	err = WriteFull(w, bbody)
+	w.Header().Add("Content-Type", "application/dns-message")
+	err = WriteFull(w, bdns)
 	if err != nil {
 		logger.Error(err.Error())
 		w.WriteHeader(502)
 		return
 	}
 
+	w.WriteHeader(200)
 	return
 }
 

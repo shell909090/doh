@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -22,12 +23,16 @@ func ParseUint(s string) (n uint64) {
 
 type GoogleClient struct {
 	URL       string
-	transport http.RoundTripper
+	Insecure  bool
+	transport *http.Transport
 }
 
 func (client *GoogleClient) Init() (err error) {
 	client.transport = &http.Transport{
 		Proxy: http.ProxyFromEnvironment,
+	}
+	if client.Insecure {
+		client.transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 	}
 	return
 }
