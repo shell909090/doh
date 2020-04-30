@@ -42,6 +42,14 @@ As input protocol, doh are fine. We support both protocols on the same http/http
 	doh --config dohs.json
 	doh -q --protocol rfc8484 --url https://localhost:8153/dns-query --insecure www.baidu.com
 
+# 114
+
+* Domain: public1.114dns.com
+* IP: 114.114.114.114
+* Accept protocols: udp/tcp
+* Don't accept edns-client-subnet, in any protocols.
+* No proxy needed in China.
+
 # Cloudflare
 
 * Domain: one.one.one.one
@@ -87,11 +95,12 @@ As input protocol, doh are fine. We support both protocols on the same http/http
 
 1. Don't use Quad9. Wrong result means useless.
 2. I won't suggest Cloudflare. Not the best result. Don't use it unless running out of other options.
-3. Google/OpenDNS with udp (direct connect, will be interfered by the GFW).
+3. Google/OpenDNS with udp (direct connect, will be interfered by the GFW). Find yourself a way to dodge the firewall.
 4. Google with edns-client-subnet (proxy needed).
+5. If you want tcp-tls, the first choice is Google (proxy needed in China), then Cloudflare (no proxy needed in China).
+6. If you want rfc8484, the only option here is Cloudflare. Don't use Quad9.
 
 # TODO
 
 * cache
 * record dns logs
-* DoHServer support google protocol

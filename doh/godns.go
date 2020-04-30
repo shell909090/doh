@@ -92,7 +92,7 @@ func (srv *DnsServer) Run() (err error) {
 		Addr:    srv.Addr,
 		Handler: srv,
 	}
-	logger.Infof("dns server start.")
+	logger.Infof("dns server start. listen in %s://%s", srv.Net, srv.Addr)
 	err = server.ListenAndServe()
 	return
 }
@@ -134,10 +134,8 @@ func appendEdns0Subnet(m *dns.Msg, addr net.IP, mask uint8) {
 	}
 	if addr.To4() == nil {
 		e.Family = 2 // IP6
-		// e.SourceNetmask = net.IPv6len * 8
 	} else {
 		e.Family = 1 // IP4
-		// e.SourceNetmask = net.IPv4len * 8
 	}
 
 	opt.Option = append(opt.Option, e)

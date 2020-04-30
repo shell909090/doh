@@ -143,6 +143,7 @@ func (handler *Rfc8484Handler) ServeHTTP(w http.ResponseWriter, req *http.Reques
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
+
 	default:
 		w.WriteHeader(http.StatusBadRequest)
 		return
@@ -222,6 +223,7 @@ func NewDoHServer(cli Client, Scheme, Addr, CertFile, KeyFile, EdnsClientSubnet 
 		cli:      cli,
 		mux:      http.NewServeMux(),
 	}
+
 	rfc8484h, err := NewRfc8484Handler(cli, EdnsClientSubnet)
 	if err != nil {
 		logger.Error(err.Error())
@@ -243,6 +245,7 @@ func (srv *DoHServer) Run() (err error) {
 		Addr:    srv.Addr,
 		Handler: srv.mux,
 	}
+
 	switch srv.Scheme {
 	case "http":
 		err = server.ListenAndServe()

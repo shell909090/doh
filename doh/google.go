@@ -43,8 +43,6 @@ func NewGoogleClient(URL string, Insecure bool) (cli *GoogleClient) {
 }
 
 func (cli *GoogleClient) Exchange(ctx context.Context, quiz *dns.Msg) (ans *dns.Msg, err error) {
-	logger.Debug(quiz.String())
-
 	req, err := http.NewRequestWithContext(ctx, "GET", cli.URL, nil)
 	if err != nil {
 		logger.Error(err.Error())
@@ -53,13 +51,13 @@ func (cli *GoogleClient) Exchange(ctx context.Context, quiz *dns.Msg) (ans *dns.
 
 	query := req.URL.Query()
 	query.Add("name", quiz.Question[0].Name)
-	query.Add("type", fmt.Sprintf("%v", dns.TypeToString[quiz.Question[0].Qtype]))
+	query.Add("type", dns.TypeToString[quiz.Question[0].Qtype])
 
 	opt := quiz.IsEdns0()
 	if opt != nil {
 		for _, o := range opt.Option {
 			if e, ok := o.(*dns.EDNS0_SUBNET); ok {
-				subnet := e.Address.String()
+				subnet := fmt.Sprintf("%s/%d", e.Address.String(), e.SourceNetmask)
 				query.Add("edns_client_subnet", subnet)
 				break
 			}
@@ -162,6 +160,8 @@ func (handler *GoogleHandler) ServeHTTP(w http.ResponseWriter, req *http.Request
 		quiz.SetEdns0(4096, true)
 	}
 
+	logger.Infof("google server query: %s", quiz.Question[0].Name)
+
 	ctx := context.Background()
 	ans, err := handler.cli.Exchange(ctx, quiz)
 	if err != nil {
@@ -170,40 +170,60 @@ func (handler *GoogleHandler) ServeHTTP(w http.ResponseWriter, req *http.Request
 		return
 	}
 
-	fmt.Println(quiz.String())
-	fmt.Println(ans.String())
+	jsonresp := &DNSMsg{}
+	err = jsonresp.FromAnswer(quiz, ans)
+	if err != nil {
+		logger.Error(err.Error())
+		w.WriteHeader(http.StatusBadGateway)
+		return
+	}
+
+	bresp, err := json.Marshal(jsonresp)
+	if err != nil {
+		logger.Error(err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 
 	w.Header().Add("Content-Type", "application/dns-message")
 	w.Header().Add("Cache-Control", "no-cache, max-age=0")
 	w.WriteHeader(http.StatusOK)
+
+	err = WriteFull(w, bresp)
+	if err != nil {
+		logger.Error(err.Error())
+		w.WriteHeader(http.StatusBadGateway)
+		return
+	}
+
 	return
 }
 
 type DNSMsg struct {
-	Status             int32         `json:"Status,omitempty"`
-	TC                 bool          `json:"TC,omitempty"`
-	RD                 bool          `json:"RD,omitempty"`
-	RA                 bool          `json:"RA,omitempty"`
-	AD                 bool          `json:"AD,omitempty"`
-	CD                 bool          `json:"CD,omitempty"`
-	Question           []DNSQuestion `json:"Question,omitempty"`
-	Answer             []DNSRR       `json:"Answer,omitempty"`
-	Authority          []DNSRR       `json:"Authority,omitempty"`
-	Additional         []DNSRR       `json:"Additional,omitempty"`
+	Status             int32         `json:"Status"`
+	TC                 bool          `json:"TC"`
+	RD                 bool          `json:"RD"`
+	RA                 bool          `json:"RA"`
+	AD                 bool          `json:"AD"`
+	CD                 bool          `json:"CD"`
+	Question           []DNSQuestion `json:"Question"`
+	Answer             []DNSRR       `json:"Answer"`
+	Authority          []DNSRR       `json:"Authority"`
+	Additional         []DNSRR       `json:"Additional"`
 	Edns_client_subnet string        `json:"edns_client_subnet,omitempty"`
 	Comment            string        `json:"Comment,omitempty"`
 }
 
 type DNSQuestion struct {
-	Name string `json:"name,omitempty"`
-	Type int32  `json:"type,omitempty"`
+	Name string `json:"name"`
+	Type int32  `json:"type"`
 }
 
 type DNSRR struct {
-	Name string `json:"name,omitempty"`
-	Type int32  `json:"type,omitempty"`
-	TTL  int32  `json:"TTL,omitempty"`
-	Data string `json:"data,omitempty"`
+	Name string `json:"name"`
+	Type int32  `json:"type"`
+	TTL  int32  `json:"TTL"`
+	Data string `json:"data"`
 }
 
 func (msg *DNSMsg) TranslateAnswer(quiz *dns.Msg) (ans *dns.Msg, err error) {
@@ -255,6 +275,49 @@ func TranslateRRs(jrs *[]DNSRR, rrs *[]dns.RR) {
 		rr := jr.Translate()
 		if rr != nil {
 			*rrs = append(*rrs, rr)
+		}
+	}
+}
+
+func (msg *DNSMsg) FromAnswer(quiz, ans *dns.Msg) (err error) {
+	msg.Status = int32(ans.MsgHdr.Rcode)
+	msg.TC = ans.MsgHdr.Truncated
+	msg.RD = ans.MsgHdr.RecursionDesired
+	msg.RA = ans.MsgHdr.RecursionAvailable
+	msg.AD = ans.MsgHdr.AuthenticatedData
+	msg.CD = ans.MsgHdr.CheckingDisabled
+
+	for _, q := range ans.Question {
+		msg.Question = append(msg.Question,
+			DNSQuestion{
+				Name: q.Name,
+				Type: int32(q.Qtype),
+			})
+	}
+
+	FromRRs(&msg.Answer, &ans.Answer)
+	FromRRs(&msg.Authority, &ans.Ns)
+	FromRRs(&msg.Additional, &ans.Extra)
+
+	opt := quiz.IsEdns0()
+	if opt != nil {
+		for _, o := range opt.Option {
+			if e, ok := o.(*dns.EDNS0_SUBNET); ok {
+				msg.Edns_client_subnet = fmt.Sprintf("%s/%d", e.Address.String(), e.SourceNetmask)
+				break
+			}
+		}
+	}
+
+	return
+}
+
+func FromRRs(jrs *[]DNSRR, rrs *[]dns.RR) {
+	*jrs = make([]DNSRR, 0)
+	for _, rr := range *rrs {
+		jr := FromRR(rr)
+		if jr != nil {
+			*jrs = append(*jrs, *jr)
 		}
 	}
 }
@@ -458,5 +521,65 @@ func (jr *DNSRR) Translate() (rr dns.RR) {
 		Rdlength: uint16(len(jr.Data)),
 	}
 	*(rr.Header()) = *hdr
+	return
+}
+
+func FromRR(rr dns.RR) (jr *DNSRR) {
+	jr = &DNSRR{
+		Name: rr.Header().Name,
+		Type: int32(rr.Header().Rrtype),
+		TTL:  int32(rr.Header().Ttl),
+	}
+	switch v := rr.(type) {
+	case *dns.A:
+		jr.Data = v.A.String()
+	case *dns.NS:
+		jr.Data = v.Ns
+	case *dns.MD:
+		jr.Data = v.Md
+	case *dns.MF:
+		jr.Data = v.Mf
+	case *dns.CNAME:
+		jr.Data = v.Target
+	case *dns.SOA:
+		jr.Data = fmt.Sprintf("%s %s %d %d %d %d %d", v.Ns, v.Mbox, v.Serial, v.Refresh, v.Retry, v.Expire, v.Minttl)
+	case *dns.MB:
+		jr.Data = v.Mb
+	case *dns.MG:
+		jr.Data = v.Mg
+	case *dns.MR:
+		jr.Data = v.Mr
+	case *dns.NULL:
+	case *dns.PTR:
+		jr.Data = v.Ptr
+	case *dns.HINFO:
+	case *dns.MINFO:
+	case *dns.MX:
+		jr.Data = fmt.Sprintf("%d %s", v.Preference, v.Mx)
+	case *dns.TXT:
+		jr.Data = strings.Join(v.Txt, " ")
+	case *dns.RP:
+		jr.Data = fmt.Sprintf("%s %s", v.Mbox, v.Txt)
+	case *dns.AAAA:
+		jr.Data = v.AAAA.String()
+	case *dns.SRV:
+		jr.Data = fmt.Sprintf("%d %d %d %s", v.Priority, v.Weight, v.Port, v.Target)
+	case *dns.SPF:
+		jr.Data = strings.Join(v.Txt, " ")
+	case *dns.DS:
+		jr.Data = fmt.Sprintf("%d %d %d %s", v.KeyTag, v.Algorithm, v.DigestType, v.Digest)
+	case *dns.SSHFP:
+		jr.Data = fmt.Sprintf("%d %d %s", v.Algorithm, v.Type, v.FingerPrint)
+	case *dns.RRSIG:
+		jr.Data = fmt.Sprintf("%d %d %d %d %d %d %s %s", v.Algorithm, v.Labels, v.OrigTtl, v.Expiration, v.Inception, v.KeyTag, v.SignerName, v.Signature)
+	case *dns.NSEC:
+		// TODO
+	case *dns.DNSKEY:
+		jr.Data = fmt.Sprintf("%d %d %d %s", v.Flags, v.Protocol, v.Algorithm, v.PublicKey)
+	case *dns.NSEC3:
+		// TODO
+	case *dns.NSEC3PARAM:
+		jr.Data = fmt.Sprintf("%d %d %d %d %s", v.Hash, v.Flags, v.Iterations, v.SaltLength, v.Salt)
+	}
 	return
 }

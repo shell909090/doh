@@ -52,9 +52,10 @@ test-udp-google: bin/doh
 	killall doh
 
 test-http: bin/doh
-	bin/doh --config doh.json &
+	bin/doh --loglevel DEBUG --config doh.json &
 	sleep 1
 	bin/doh -q --short --protocol rfc8484 --url http://localhost:8053/dns-query www.baidu.com
+	curl -s "http://localhost:8053/resolve?name=www.baidu.com" | jq
 	killall doh
 
 test-https: bin/doh
