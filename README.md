@@ -33,18 +33,65 @@ As input protocol, doh are fine. We support both protocols on the same http/http
 	# with proxy
 	doh -q --protocol google --url https://dns.google.com/resolve www.baidu.com
 
-	doh --config udp.json
+	doh --config udp-rfc8484.json
 	dig www.baidu.com @127.0.0.1 -p 5053
 
 	doh --config doh.json
 	doh -q --protocol rfc8484 --url http://localhost:8053/dns-query www.baidu.com
 
 	doh --config dohs.json
-	doh -q --protocol rfc8484 --url https://localhost:8053/dns-query --insecure www.baidu.com
+	doh -q --protocol rfc8484 --url https://localhost:8153/dns-query --insecure www.baidu.com
+
+# Cloudflare
+
+* Domain: one.one.one.one
+* IP: 1.1.1.1/1.0.0.1
+* Accept protocols: udp/tcp/tcp-tls
+* Don't accept edns-client-subnet, in any protocols.
+* No proxy needed in China.
+* Accuracy: not best result in China.
+
+* Domain: security.cloudflare-dns.com
+* IP: 104.18.2.55/104.18.3.55
+* Accept protocols: rfc8484
+* Don't accept edns-client-subnet, in any protocols.
+* No proxy needed in China.
+* Accuracy: not best result in China.
+
+# Google
+
+* Domain: dns.google.com
+* IP: 8.8.8.8/8.8.4.4
+* Accept protocols: udp/tcp/tcp-tls/google.
+* Accept edns-client-subnet with protocol google.
+* A proxy will be needed in China.
+
+# OpenDNS
+
+* Domain: dns.opendns.com
+* IP: 208.67.222.222/208.67.220.220
+* Accept protocols: udp/tcp
+* Don't accept edns-client-subnet, in any protocols.
+* No proxy needed in China.
+
+# Quad9
+
+* Domain: dns.quad9.net
+* IP: 9.9.9.9/149.112.112.112
+* Accept protocols: udp/tcp/tcp-tls/rfc8484
+* Don't accept edns-client-subnet, in any protocols.
+* No proxy needed in China.
+* Accuracy: wrong result in China (taobao and baidu).
+
+# Suggested in China
+
+1. Don't use Quad9. Wrong result means useless.
+2. I won't suggest Cloudflare. Not the best result. Don't use it unless running out of other options.
+3. Google/OpenDNS with udp (direct connect, will be interfered by the GFW).
+4. Google with edns-client-subnet (proxy needed).
 
 # TODO
 
 * cache
-* edns-client-subnet
 * record dns logs
 * DoHServer support google protocol

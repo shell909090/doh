@@ -1,9 +1,15 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"net"
 
 	"github.com/miekg/dns"
+)
+
+var (
+	ErrParseSubnet = errors.New("failed to parse subnet")
 )
 
 type DnsClient struct {
@@ -23,29 +29,45 @@ func NewDnsClient(Net, Server string) (cli *DnsClient) {
 	return
 }
 
-func (cli *DnsClient) Exchange(quiz *dns.Msg) (ans *dns.Msg, err error) {
-	ans, _, err = cli.cli.Exchange(quiz, cli.Server)
+func (cli *DnsClient) Exchange(ctx context.Context, quiz *dns.Msg) (ans *dns.Msg, err error) {
+	ans, _, err = cli.cli.ExchangeContext(ctx, quiz, cli.Server)
 	return
 }
 
 type DnsServer struct {
-	Net  string
-	Addr string
-	cli  Client
+	Net              string
+	Addr             string
+	EdnsClientSubnet string
+	clientAddr       net.IP
+	clientMask       uint8
+	cli              Client
 }
 
-func NewDnsServer(cli Client, Net, Addr string) (srv *DnsServer) {
+func NewDnsServer(cli Client, Net, Addr, EdnsClientSubnet string) (srv *DnsServer, err error) {
 	srv = &DnsServer{
-		Net:  Net,
-		Addr: Addr,
-		cli:  cli,
+		Net:              Net,
+		Addr:             Addr,
+		EdnsClientSubnet: EdnsClientSubnet,
+		cli:              cli,
+	}
+	if EdnsClientSubnet != "" {
+		srv.clientAddr, srv.clientMask, err = ParseSubnet(EdnsClientSubnet)
+		if err != nil {
+			logger.Error(err.Error())
+			return
+		}
 	}
 	return
 }
 
 func (srv *DnsServer) ServeDNS(w dns.ResponseWriter, quiz *dns.Msg) {
 	logger.Infof("dns server query: %s", quiz.Question[0].Name)
-	ans, err := srv.cli.Exchange(quiz)
+	if srv.EdnsClientSubnet != "" {
+		appendEdns0Subnet(quiz, srv.clientAddr, srv.clientMask)
+	}
+
+	ctx := context.Background()
+	ans, err := srv.cli.Exchange(ctx, quiz)
 	if err != nil {
 		logger.Error(err.Error())
 		return
@@ -60,6 +82,7 @@ func (srv *DnsServer) ServeDNS(w dns.ResponseWriter, quiz *dns.Msg) {
 		logger.Error(err.Error())
 		return
 	}
+
 	return
 }
 
@@ -74,39 +97,50 @@ func (srv *DnsServer) Run() (err error) {
 	return
 }
 
-func appendEdns0Subnet(m *dns.Msg, addr net.IP) {
-	newOpt := true
-	var o *dns.OPT
-	for _, v := range m.Extra {
-		if v.Header().Rrtype == dns.TypeOPT {
-			o = v.(*dns.OPT)
-			newOpt = false
-			break
+func ParseSubnet(subnet string) (ip net.IP, mask uint8, err error) {
+	ip, ipnet, err := net.ParseCIDR(subnet)
+	if err != nil {
+		ip = net.ParseIP(subnet)
+		switch {
+		case ip == nil:
+			err = ErrParseSubnet
+			return
+		case ip.To4() == nil:
+			mask = net.IPv6len * 8
+		default:
+			mask = net.IPv4len * 8
 		}
+		return
 	}
-	if o == nil {
-		o = &dns.OPT{}
-		o.Hdr.Name = "."
-		o.Hdr.Rrtype = dns.TypeOPT
+	one, _ := ipnet.Mask.Size()
+	mask = uint8(one)
+	return
+}
+
+func appendEdns0Subnet(m *dns.Msg, addr net.IP, mask uint8) {
+	opt := m.IsEdns0()
+	if opt == nil {
+		opt = &dns.OPT{}
+		opt.Hdr.Name = "."
+		opt.Hdr.Rrtype = dns.TypeOPT
+		m.Extra = append(m.Extra, opt)
 	}
 
 	e := &dns.EDNS0_SUBNET{
-		Code:        dns.EDNS0SUBNET,
-		SourceScope: 0,
-		Address:     addr,
+		Code:          dns.EDNS0SUBNET,
+		SourceNetmask: mask,
+		SourceScope:   0,
+		Address:       addr,
 	}
-	if e.Address.To4() == nil {
+	if addr.To4() == nil {
 		e.Family = 2 // IP6
-		e.SourceNetmask = net.IPv6len * 8
+		// e.SourceNetmask = net.IPv6len * 8
 	} else {
 		e.Family = 1 // IP4
-		e.SourceNetmask = net.IPv4len * 8
+		// e.SourceNetmask = net.IPv4len * 8
 	}
 
-	o.Option = append(o.Option, e)
-	if newOpt {
-		m.Extra = append(m.Extra, o)
-	}
+	opt.Option = append(opt.Option, e)
 }
 
 type DnsClientSubnetWrapper struct {
@@ -125,8 +159,8 @@ func NewDnsClientSubnetWrapper(cli Client, clientSubnet string) (wrapper *DnsCli
 
 }
 
-func (wrapper *DnsClientSubnetWrapper) Exchange(quiz *dns.Msg) (ans *dns.Msg, err error) {
-	appendEdns0Subnet(quiz, wrapper.addr)
-	ans, err = wrapper.cli.Exchange(quiz)
+func (wrapper *DnsClientSubnetWrapper) Exchange(ctx context.Context, quiz *dns.Msg) (ans *dns.Msg, err error) {
+	appendEdns0Subnet(quiz, wrapper.addr, 32) // TODO:
+	ans, err = wrapper.cli.Exchange(ctx, quiz)
 	return
 }

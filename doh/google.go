@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
@@ -41,8 +42,10 @@ func NewGoogleClient(URL string, Insecure bool) (cli *GoogleClient) {
 	return
 }
 
-func (cli *GoogleClient) Exchange(quiz *dns.Msg) (ans *dns.Msg, err error) {
-	req, err := http.NewRequest("GET", cli.URL, nil)
+func (cli *GoogleClient) Exchange(ctx context.Context, quiz *dns.Msg) (ans *dns.Msg, err error) {
+	logger.Debug(quiz.String())
+
+	req, err := http.NewRequestWithContext(ctx, "GET", cli.URL, nil)
 	if err != nil {
 		logger.Error(err.Error())
 		return
@@ -50,7 +53,7 @@ func (cli *GoogleClient) Exchange(quiz *dns.Msg) (ans *dns.Msg, err error) {
 
 	query := req.URL.Query()
 	query.Add("name", quiz.Question[0].Name)
-	query.Add("type", fmt.Sprintf("%v", quiz.Question[0].Qtype))
+	query.Add("type", fmt.Sprintf("%v", dns.TypeToString[quiz.Question[0].Qtype]))
 
 	opt := quiz.IsEdns0()
 	if opt != nil {
@@ -83,6 +86,96 @@ func (cli *GoogleClient) Exchange(quiz *dns.Msg) (ans *dns.Msg, err error) {
 	if err != nil {
 		return
 	}
+	return
+}
+
+type GoogleHandler struct {
+	EdnsClientSubnet string
+	clientAddr       net.IP
+	clientMask       uint8
+	cli              Client
+}
+
+func NewGoogleHandler(cli Client, EdnsClientSubnet string) (handler *GoogleHandler, err error) {
+	handler = &GoogleHandler{
+		EdnsClientSubnet: EdnsClientSubnet,
+		cli:              cli,
+	}
+	if EdnsClientSubnet != "" && EdnsClientSubnet != "client" {
+		handler.clientAddr, handler.clientMask, err = ParseSubnet(EdnsClientSubnet)
+		if err != nil {
+			logger.Error(err.Error())
+			return
+		}
+	}
+	return
+}
+
+func (handler *GoogleHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	var err error
+	defer req.Body.Close()
+
+	err = req.ParseForm()
+	if err != nil {
+		logger.Error(err.Error())
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	quiz := &dns.Msg{}
+
+	name := req.Form.Get("name")
+	stype := req.Form.Get("type")
+	qtype, ok := dns.StringToType[stype]
+	if !ok {
+		qtype = dns.TypeA
+	}
+	quiz.SetQuestion(dns.Fqdn(name), qtype)
+
+	ecs := req.Form.Get("edns_client_subnet")
+	var addr net.IP
+	var mask uint8
+	switch {
+	case ecs != "":
+		addr, mask, err = ParseSubnet(ecs)
+		if err != nil {
+			logger.Error(err.Error())
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		appendEdns0Subnet(quiz, addr, mask)
+
+	case handler.EdnsClientSubnet == "client":
+		addr, mask, err = ParseSubnet(req.RemoteAddr)
+		if err != nil {
+			logger.Error(err.Error())
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		appendEdns0Subnet(quiz, addr, mask)
+
+	case handler.EdnsClientSubnet != "":
+		appendEdns0Subnet(quiz, handler.clientAddr, handler.clientMask)
+	}
+
+	if req.Form.Get("dnssec") != "" {
+		quiz.SetEdns0(4096, true)
+	}
+
+	ctx := context.Background()
+	ans, err := handler.cli.Exchange(ctx, quiz)
+	if err != nil {
+		logger.Error(err.Error())
+		w.WriteHeader(http.StatusBadGateway)
+		return
+	}
+
+	fmt.Println(quiz.String())
+	fmt.Println(ans.String())
+
+	w.Header().Add("Content-Type", "application/dns-message")
+	w.Header().Add("Cache-Control", "no-cache, max-age=0")
+	w.WriteHeader(http.StatusOK)
 	return
 }
 
@@ -143,11 +236,15 @@ func (msg *DNSMsg) TranslateAnswer(quiz *dns.Msg) (ans *dns.Msg, err error) {
 	TranslateRRs(&msg.Authority, &ans.Ns)
 	TranslateRRs(&msg.Additional, &ans.Extra)
 
-	// TODO: is this right?
-	clientip := strings.Split(msg.Edns_client_subnet, "/")[0]
-	addr := net.ParseIP(clientip)
-	if addr != nil {
-		appendEdns0Subnet(ans, addr)
+	if msg.Edns_client_subnet != "" {
+		var addr net.IP
+		var mask uint8
+		addr, mask, err = ParseSubnet(msg.Edns_client_subnet)
+		if err != nil {
+			logger.Error(err.Error())
+			return
+		}
+		appendEdns0Subnet(ans, addr, mask)
 	}
 
 	return

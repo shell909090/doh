@@ -2,11 +2,13 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"encoding/base64"
 	"errors"
 	"io"
 	"io/ioutil"
+	"net"
 	"net/http"
 
 	"github.com/miekg/dns"
@@ -47,14 +49,14 @@ func NewRfc8484Client(URL string, Insecure bool) (cli *Rfc8484Client) {
 	return
 }
 
-func (cli *Rfc8484Client) Exchange(quiz *dns.Msg) (ans *dns.Msg, err error) {
+func (cli *Rfc8484Client) Exchange(ctx context.Context, quiz *dns.Msg) (ans *dns.Msg, err error) {
 	bquiz, err := quiz.Pack()
 	if err != nil {
 		logger.Error(err.Error())
 		return
 	}
 
-	req, err := http.NewRequest("POST", cli.URL, bytes.NewBuffer(bquiz))
+	req, err := http.NewRequestWithContext(ctx, "POST", cli.URL, bytes.NewBuffer(bquiz))
 	if err != nil {
 		logger.Error(err.Error())
 		return
@@ -91,7 +93,25 @@ func (cli *Rfc8484Client) Exchange(quiz *dns.Msg) (ans *dns.Msg, err error) {
 }
 
 type Rfc8484Handler struct {
-	cli Client
+	EdnsClientSubnet string
+	clientAddr       net.IP
+	clientMask       uint8
+	cli              Client
+}
+
+func NewRfc8484Handler(cli Client, EdnsClientSubnet string) (handler *Rfc8484Handler, err error) {
+	handler = &Rfc8484Handler{
+		EdnsClientSubnet: EdnsClientSubnet,
+		cli:              cli,
+	}
+	if EdnsClientSubnet != "" && EdnsClientSubnet != "client" {
+		handler.clientAddr, handler.clientMask, err = ParseSubnet(EdnsClientSubnet)
+		if err != nil {
+			logger.Error(err.Error())
+			return
+		}
+	}
+	return
 }
 
 func (handler *Rfc8484Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
@@ -104,7 +124,7 @@ func (handler *Rfc8484Handler) ServeHTTP(w http.ResponseWriter, req *http.Reques
 		err = req.ParseForm()
 		if err != nil {
 			logger.Error(err.Error())
-			w.WriteHeader(400)
+			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 
@@ -112,7 +132,7 @@ func (handler *Rfc8484Handler) ServeHTTP(w http.ResponseWriter, req *http.Reques
 		bdns, err = base64.StdEncoding.DecodeString(b64dns)
 		if err != nil {
 			logger.Error(err.Error())
-			w.WriteHeader(400)
+			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 
@@ -120,11 +140,11 @@ func (handler *Rfc8484Handler) ServeHTTP(w http.ResponseWriter, req *http.Reques
 		bdns, err = ioutil.ReadAll(req.Body)
 		if err != nil {
 			logger.Error(err.Error())
-			w.WriteHeader(400)
+			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 	default:
-		w.WriteHeader(400)
+		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
@@ -132,34 +152,52 @@ func (handler *Rfc8484Handler) ServeHTTP(w http.ResponseWriter, req *http.Reques
 	err = quiz.Unpack(bdns)
 	if err != nil {
 		logger.Error(err.Error())
-		w.WriteHeader(400)
+		w.WriteHeader(http.StatusBadRequest)
 		return
+	}
+
+	switch handler.EdnsClientSubnet {
+	case "":
+	case "client":
+		var addr net.IP
+		var mask uint8
+		addr, mask, err = ParseSubnet(req.RemoteAddr)
+		if err != nil {
+			logger.Error(err.Error())
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		appendEdns0Subnet(quiz, addr, mask)
+
+	default:
+		appendEdns0Subnet(quiz, handler.clientAddr, handler.clientMask)
 	}
 
 	logger.Infof("rfc8484 server query: %s", quiz.Question[0].Name)
 
-	ans, err := handler.cli.Exchange(quiz)
+	ctx := context.Background()
+	ans, err := handler.cli.Exchange(ctx, quiz)
 	if err != nil {
 		logger.Error(err.Error())
-		w.WriteHeader(502)
+		w.WriteHeader(http.StatusBadGateway)
 		return
 	}
 
 	bdns, err = ans.Pack()
 	if err != nil {
 		logger.Error(err.Error())
-		w.WriteHeader(502)
+		w.WriteHeader(http.StatusBadGateway)
 		return
 	}
 
 	w.Header().Add("Content-Type", "application/dns-message")
 	w.Header().Add("Cache-Control", "no-cache, max-age=0")
-	w.WriteHeader(200)
+	w.WriteHeader(http.StatusOK)
 
 	err = WriteFull(w, bdns)
 	if err != nil {
 		logger.Error(err.Error())
-		w.WriteHeader(502)
+		w.WriteHeader(http.StatusBadGateway)
 		return
 	}
 
@@ -175,7 +213,7 @@ type DoHServer struct {
 	mux      *http.ServeMux
 }
 
-func NewDoHServer(cli Client, Scheme, Addr, CertFile, KeyFile string) (srv *DoHServer) {
+func NewDoHServer(cli Client, Scheme, Addr, CertFile, KeyFile, EdnsClientSubnet string) (srv *DoHServer, err error) {
 	srv = &DoHServer{
 		Scheme:   Scheme,
 		Addr:     Addr,
@@ -184,7 +222,19 @@ func NewDoHServer(cli Client, Scheme, Addr, CertFile, KeyFile string) (srv *DoHS
 		cli:      cli,
 		mux:      http.NewServeMux(),
 	}
-	srv.mux.Handle("/dns-query", &Rfc8484Handler{cli: cli})
+	rfc8484h, err := NewRfc8484Handler(cli, EdnsClientSubnet)
+	if err != nil {
+		logger.Error(err.Error())
+		return
+	}
+	srv.mux.Handle("/dns-query", rfc8484h)
+
+	googleh, err := NewGoogleHandler(cli, EdnsClientSubnet)
+	if err != nil {
+		logger.Error(err.Error())
+		return
+	}
+	srv.mux.Handle("/resolve", googleh)
 	return
 }
 

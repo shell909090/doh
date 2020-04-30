@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -14,7 +15,7 @@ import (
 )
 
 type Client interface {
-	Exchange(quiz *dns.Msg) (ans *dns.Msg, err error)
+	Exchange(ctx context.Context, quiz *dns.Msg) (ans *dns.Msg, err error)
 }
 
 type Server interface {
@@ -22,20 +23,22 @@ type Server interface {
 }
 
 type Config struct {
-	Logfile        string
-	Loglevel       string
-	InputProtocol  string `json:"input-protocol"`
-	InputURL       string `json:"input-url"`
-	InputCertFile  string `json:"input-cert-file"`
-	InputKeyFile   string `json:"input-key-file"`
-	OutputProtocol string `json:"output-protocol"`
-	OutputURL      string `json:"output-url"`
-	OutputInsecure bool   `json:"output-insecure"`
+	Logfile          string
+	Loglevel         string
+	InputProtocol    string `json:"input-protocol"`
+	InputURL         string `json:"input-url"`
+	InputCertFile    string `json:"input-cert-file"`
+	InputKeyFile     string `json:"input-key-file"`
+	EdnsClientSubnet string `json:"edns-client-subnet"`
+	OutputProtocol   string `json:"output-protocol"`
+	OutputURL        string `json:"output-url"`
+	OutputInsecure   bool   `json:"output-insecure"`
 }
 
 var (
 	ErrConfigParse = errors.New("config parse error")
 	logger         = logging.MustGetLogger("")
+	Short          bool
 )
 
 func LoadJson(configfile string, cfg interface{}) (err error) {
@@ -102,28 +105,49 @@ func CreateInput(cfg *Config, cli Client) (srv Server, err error) {
 		logger.Error(err.Error())
 		return
 	}
+
 	switch cfg.InputProtocol {
 	case "dns", "":
-		srv = NewDnsServer(cli, u.Scheme, u.Host)
+		srv, err = NewDnsServer(cli, u.Scheme, u.Host, cfg.EdnsClientSubnet)
 	case "doh":
-		srv = NewDoHServer(cli, u.Scheme, u.Host, cfg.InputCertFile, cfg.InputKeyFile)
+		srv, err = NewDoHServer(cli, u.Scheme, u.Host, cfg.InputCertFile, cfg.InputKeyFile, cfg.EdnsClientSubnet)
 	default:
 		err = ErrConfigParse
 		return
 	}
 
-	return
-}
-
-func QueryDN(cli Client, dn string) (err error) {
-	quiz := &dns.Msg{}
-	quiz.SetQuestion(dns.Fqdn(dn), dns.TypeA)
-	ans, err := cli.Exchange(quiz)
 	if err != nil {
 		logger.Error(err.Error())
 		return
 	}
-	fmt.Println(ans.String())
+	return
+}
+
+func QueryDN(cli Client, dn string, qtype uint16) (err error) {
+	ctx := context.Background()
+	quiz := &dns.Msg{}
+	quiz.SetQuestion(dns.Fqdn(dn), qtype)
+
+	ans, err := cli.Exchange(ctx, quiz)
+	if err != nil {
+		logger.Error(err.Error())
+		return
+	}
+
+	if Short {
+		for _, rr := range ans.Answer {
+			switch v := rr.(type) {
+			case *dns.A:
+				fmt.Println(v.A.String())
+			case *dns.AAAA:
+				fmt.Println(v.AAAA.String())
+			case *dns.CNAME:
+				fmt.Println(v.Target)
+			}
+		}
+	} else {
+		fmt.Println(ans.String())
+	}
 	return
 }
 
@@ -132,6 +156,8 @@ func main() {
 	var Loglevel string
 	var Profile string
 	var Query bool
+	var IPv4 bool
+	var IPv6 bool
 	var Protocol string
 	var URL string
 	var Insecure bool
@@ -139,6 +165,9 @@ func main() {
 	flag.StringVar(&Loglevel, "loglevel", "", "log level")
 	flag.StringVar(&Profile, "profile", "", "run profile")
 	flag.BoolVar(&Query, "q", false, "query")
+	flag.BoolVar(&Short, "short", false, "show short answer")
+	flag.BoolVar(&IPv4, "4", false, "query ipv4 only")
+	flag.BoolVar(&IPv6, "6", false, "query ipv6 only")
 	flag.StringVar(&Protocol, "protocol", "", "output protocol")
 	flag.StringVar(&URL, "url", "", "output url")
 	flag.BoolVar(&Insecure, "insecure", false, "output insecure")
@@ -174,7 +203,18 @@ func main() {
 	switch {
 	case Query:
 		for _, dn := range flag.Args() {
-			QueryDN(cli, dn)
+			switch {
+			case !IPv4 && !IPv6:
+				QueryDN(cli, dn, dns.TypeA)
+				QueryDN(cli, dn, dns.TypeAAAA)
+			case IPv4 && !IPv6:
+				QueryDN(cli, dn, dns.TypeA)
+			case !IPv4 && IPv6:
+				QueryDN(cli, dn, dns.TypeAAAA)
+			default:
+				logger.Error("don't use -4 and -6 at the same time")
+				return
+			}
 		}
 
 	case cfg.InputProtocol != "" && cfg.InputURL != "":
