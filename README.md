@@ -36,11 +36,11 @@ As input protocol, doh are fine. We support both protocols on the same http/http
 	doh --config udp.json
 	dig www.baidu.com @127.0.0.1 -p 5053
 
-	doh --serve doh.json
+	doh --config doh.json
 	doh -q --protocol rfc8484 --url http://localhost:8053/dns-query www.baidu.com
 
-	doh --serve dohs.json
-	doh -q --protocol rfc8484 --url https://localhost:8053/dns-query www.baidu.com
+	doh --config dohs.json
+	doh -q --protocol rfc8484 --url https://localhost:8053/dns-query --insecure www.baidu.com
 
 # TODO
 

@@ -14,12 +14,10 @@ import (
 )
 
 type Client interface {
-	Init() (err error)
 	Exchange(quiz *dns.Msg) (ans *dns.Msg, err error)
 }
 
 type Server interface {
-	Init() (err error)
 	Run() (err error)
 }
 
@@ -85,29 +83,19 @@ func CreateOutput(cfg *Config) (client Client, err error) {
 			logger.Error(err.Error())
 			return
 		}
-		client = &DnsClient{
-			Net:    u.Scheme,
-			Server: u.Host,
-		}
+		client = NewDnsClient(u.Scheme, u.Host)
 	case "google":
-		client = &GoogleClient{
-			URL:      cfg.OutputURL,
-			Insecure: cfg.OutputInsecure,
-		}
+		client = NewGoogleClient(cfg.OutputURL, cfg.OutputInsecure)
 	case "rfc8484":
-		client = &Rfc8484Client{
-			URL:      cfg.OutputURL,
-			Insecure: cfg.OutputInsecure,
-		}
+		client = NewRfc8484Client(cfg.OutputURL, cfg.OutputInsecure)
 	default:
 		err = ErrConfigParse
 		return
 	}
-	err = client.Init()
 	return
 }
 
-func CreateInput(cfg *Config, client Client) (srv Server, err error) {
+func CreateInput(cfg *Config, cli Client) (srv Server, err error) {
 	var u *url.URL
 	u, err = url.Parse(cfg.InputURL)
 	if err != nil {
@@ -116,32 +104,21 @@ func CreateInput(cfg *Config, client Client) (srv Server, err error) {
 	}
 	switch cfg.InputProtocol {
 	case "dns", "":
-		srv = &DnsServer{
-			Net:    u.Scheme,
-			Addr:   u.Host,
-			Client: client,
-		}
+		srv = NewDnsServer(cli, u.Scheme, u.Host)
 	case "doh":
-		srv = &DoHServer{
-			Scheme:   u.Scheme,
-			Addr:     u.Host,
-			CertFile: cfg.InputCertFile,
-			KeyFile:  cfg.InputKeyFile,
-			Client:   client,
-		}
+		srv = NewDoHServer(cli, u.Scheme, u.Host, cfg.InputCertFile, cfg.InputKeyFile)
 	default:
 		err = ErrConfigParse
 		return
 	}
 
-	err = srv.Init()
 	return
 }
 
-func QueryDN(client Client, dn string) (err error) {
+func QueryDN(cli Client, dn string) (err error) {
 	quiz := &dns.Msg{}
 	quiz.SetQuestion(dns.Fqdn(dn), dns.TypeA)
-	ans, err := client.Exchange(quiz)
+	ans, err := cli.Exchange(quiz)
 	if err != nil {
 		logger.Error(err.Error())
 		return
@@ -188,7 +165,7 @@ func main() {
 	}
 
 	logger.Debugf("config: %+v", cfg)
-	client, err := CreateOutput(cfg)
+	cli, err := CreateOutput(cfg)
 	if err != nil {
 		logger.Error(err.Error())
 		return
@@ -197,7 +174,7 @@ func main() {
 	switch {
 	case Query:
 		for _, dn := range flag.Args() {
-			QueryDN(client, dn)
+			QueryDN(cli, dn)
 		}
 
 	case cfg.InputProtocol != "" && cfg.InputURL != "":
@@ -210,7 +187,7 @@ func main() {
 		}
 
 		var srv Server
-		srv, err = CreateInput(cfg, client)
+		srv, err = CreateInput(cfg, cli)
 		if err != nil {
 			logger.Error(err.Error())
 			return

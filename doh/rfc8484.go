@@ -33,24 +33,28 @@ type Rfc8484Client struct {
 	transport *http.Transport
 }
 
-func (client *Rfc8484Client) Init() (err error) {
-	client.transport = &http.Transport{
-		Proxy: http.ProxyFromEnvironment,
+func NewRfc8484Client(URL string, Insecure bool) (cli *Rfc8484Client) {
+	cli = &Rfc8484Client{
+		URL:      URL,
+		Insecure: Insecure,
+		transport: &http.Transport{
+			Proxy: http.ProxyFromEnvironment,
+		},
 	}
-	if client.Insecure {
-		client.transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+	if Insecure {
+		cli.transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 	}
 	return
 }
 
-func (client *Rfc8484Client) Exchange(quiz *dns.Msg) (ans *dns.Msg, err error) {
+func (cli *Rfc8484Client) Exchange(quiz *dns.Msg) (ans *dns.Msg, err error) {
 	bquiz, err := quiz.Pack()
 	if err != nil {
 		logger.Error(err.Error())
 		return
 	}
 
-	req, err := http.NewRequest("POST", client.URL, bytes.NewBuffer(bquiz))
+	req, err := http.NewRequest("POST", cli.URL, bytes.NewBuffer(bquiz))
 	if err != nil {
 		logger.Error(err.Error())
 		return
@@ -58,7 +62,7 @@ func (client *Rfc8484Client) Exchange(quiz *dns.Msg) (ans *dns.Msg, err error) {
 	req.Header.Add("Accept", "application/dns-message")
 	req.Header.Add("Content-Type", "application/dns-message")
 
-	resp, err := client.transport.RoundTrip(req)
+	resp, err := cli.transport.RoundTrip(req)
 	if err != nil {
 		logger.Error(err.Error())
 		return
@@ -76,8 +80,6 @@ func (client *Rfc8484Client) Exchange(quiz *dns.Msg) (ans *dns.Msg, err error) {
 		return
 	}
 
-	// logger.Debugf("%s", string(bbody))
-
 	ans = &dns.Msg{}
 	err = ans.Unpack(bbody)
 	if err != nil {
@@ -89,7 +91,7 @@ func (client *Rfc8484Client) Exchange(quiz *dns.Msg) (ans *dns.Msg, err error) {
 }
 
 type Rfc8484Handler struct {
-	Client Client
+	cli Client
 }
 
 func (handler *Rfc8484Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
@@ -136,7 +138,7 @@ func (handler *Rfc8484Handler) ServeHTTP(w http.ResponseWriter, req *http.Reques
 
 	logger.Infof("rfc8484 server query: %s", quiz.Question[0].Name)
 
-	ans, err := handler.Client.Exchange(quiz)
+	ans, err := handler.cli.Exchange(quiz)
 	if err != nil {
 		logger.Error(err.Error())
 		w.WriteHeader(502)
@@ -151,6 +153,9 @@ func (handler *Rfc8484Handler) ServeHTTP(w http.ResponseWriter, req *http.Reques
 	}
 
 	w.Header().Add("Content-Type", "application/dns-message")
+	w.Header().Add("Cache-Control", "no-cache, max-age=0")
+	w.WriteHeader(200)
+
 	err = WriteFull(w, bdns)
 	if err != nil {
 		logger.Error(err.Error())
@@ -158,7 +163,6 @@ func (handler *Rfc8484Handler) ServeHTTP(w http.ResponseWriter, req *http.Reques
 		return
 	}
 
-	w.WriteHeader(200)
 	return
 }
 
@@ -167,13 +171,20 @@ type DoHServer struct {
 	Addr     string
 	CertFile string
 	KeyFile  string
-	Client   Client
+	cli      Client
 	mux      *http.ServeMux
 }
 
-func (srv *DoHServer) Init() (err error) {
-	srv.mux = http.NewServeMux()
-	srv.mux.Handle("/dns-query", &Rfc8484Handler{Client: srv.Client})
+func NewDoHServer(cli Client, Scheme, Addr, CertFile, KeyFile string) (srv *DoHServer) {
+	srv = &DoHServer{
+		Scheme:   Scheme,
+		Addr:     Addr,
+		CertFile: CertFile,
+		KeyFile:  KeyFile,
+		cli:      cli,
+		mux:      http.NewServeMux(),
+	}
+	srv.mux.Handle("/dns-query", &Rfc8484Handler{cli: cli})
 	return
 }
 

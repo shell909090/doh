@@ -27,18 +27,22 @@ type GoogleClient struct {
 	transport *http.Transport
 }
 
-func (client *GoogleClient) Init() (err error) {
-	client.transport = &http.Transport{
-		Proxy: http.ProxyFromEnvironment,
+func NewGoogleClient(URL string, Insecure bool) (cli *GoogleClient) {
+	cli = &GoogleClient{
+		URL:      URL,
+		Insecure: Insecure,
+		transport: &http.Transport{
+			Proxy: http.ProxyFromEnvironment,
+		},
 	}
-	if client.Insecure {
-		client.transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+	if cli.Insecure {
+		cli.transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 	}
 	return
 }
 
-func (client *GoogleClient) Exchange(quiz *dns.Msg) (ans *dns.Msg, err error) {
-	req, err := http.NewRequest("GET", client.URL, nil)
+func (cli *GoogleClient) Exchange(quiz *dns.Msg) (ans *dns.Msg, err error) {
+	req, err := http.NewRequest("GET", cli.URL, nil)
 	if err != nil {
 		logger.Error(err.Error())
 		return
@@ -61,7 +65,7 @@ func (client *GoogleClient) Exchange(quiz *dns.Msg) (ans *dns.Msg, err error) {
 
 	req.URL.RawQuery = query.Encode()
 
-	resp, err := client.transport.RoundTrip(req)
+	resp, err := cli.transport.RoundTrip(req)
 	if err != nil {
 		logger.Error(err.Error())
 		return
@@ -358,39 +362,4 @@ func (jr *DNSRR) Translate() (rr dns.RR) {
 	}
 	*(rr.Header()) = *hdr
 	return
-}
-
-func appendEdns0Subnet(m *dns.Msg, addr net.IP) {
-	newOpt := true
-	var o *dns.OPT
-	for _, v := range m.Extra {
-		if v.Header().Rrtype == dns.TypeOPT {
-			o = v.(*dns.OPT)
-			newOpt = false
-			break
-		}
-	}
-	if o == nil {
-		o = &dns.OPT{}
-		o.Hdr.Name = "."
-		o.Hdr.Rrtype = dns.TypeOPT
-	}
-
-	e := &dns.EDNS0_SUBNET{
-		Code:        dns.EDNS0SUBNET,
-		SourceScope: 0,
-		Address:     addr,
-	}
-	if e.Address.To4() == nil {
-		e.Family = 2 // IP6
-		e.SourceNetmask = net.IPv6len * 8
-	} else {
-		e.Family = 1 // IP4
-		e.SourceNetmask = net.IPv4len * 8
-	}
-
-	o.Option = append(o.Option, e)
-	if newOpt {
-		m.Extra = append(m.Extra, o)
-	}
 }
