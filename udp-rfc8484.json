@@ -1,0 +1,7 @@
+{
+    "loglevel": "INFO",
+    "input-protocol": "dns",
+    "input-url": "udp://0.0.0.0:5053",
+    "output-protocol": "rfc8484",
+    "output-url": "https://security.cloudflare-dns.com/dns-query"
+}
