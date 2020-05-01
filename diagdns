@@ -1,0 +1,28 @@
+#!/bin/bash
+
+function show_ping() {
+    OUTPUT=$(sudo mtr -i 0.5 -z -j -n "$3")
+    if [ $(echo "$OUTPUT" | jq -r '.report.hubs[-1]."Loss%"') == "100" ]; then
+	AVG=$(echo "$OUTPUT" | jq -r '.report.hubs[-2].Avg')
+	ASN=$(echo "$OUTPUT" | jq -r '.report.hubs[-2].ASN')
+    else
+	AVG=$(echo "$OUTPUT" | jq -r '.report.hubs[-1].Avg')
+	ASN=$(echo "$OUTPUT" | jq -r '.report.hubs[-1].ASN')
+    fi
+    echo "$1	$2	$3	$AVG	$ASN"
+}
+
+for DN in $@
+do
+   show_ping "$DN" "direct " $(dig +short "$DN" | tail -n 1) &
+   show_ping "$DN" "114    " $(dig +short "$DN" @114.114.114.114 | tail -n 1) &
+   show_ping "$DN" "8888   " $(dig +short "$DN" @8.8.8.8 | tail -n 1) &
+   show_ping "$DN" "gtls   " $(doh -q -4 --short --url "tcp-tls://dns.google.com:853" "$DN" | tail -n 1) &
+   show_ping "$DN" "google " $(doh -q -4 --short --url "https://dns.google.com/resolve" "$DN" | tail -n 1) &
+   show_ping "$DN" "opendns" $(dig +short "$DN" @208.67.222.222 | tail -n 1) &
+   show_ping "$DN" "one    " $(doh -q -4 --short --url "tcp-tls://one.one.one.one:853" "$DN" | tail -n 1) &
+   show_ping "$DN" "cf     " $(doh -q -4 --short --url "https://security.cloudflare-dns.com/dns-query" "$DN" | tail -n 1) &
+   show_ping "$DN" "quad9  " $(doh -q -4 --short --url "tcp-tls://dns.quad9.net:853" "$DN" | tail -n 1) &
+   show_ping "$DN" "nextdns" $(doh -q -4 --short --url "udp://45.90.28.253:53" "$DN" | tail -n 1) &
+   wait
+done

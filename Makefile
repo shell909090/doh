@@ -92,4 +92,7 @@ test-https: bin/doh
 	curl -s -k "https://localhost:8153/resolve?name=www.baidu.com" | jq
 	killall doh
 
+test-public: bin/doh
+	./diagdns www.twitter.com www.baidu.com www.google.com www.taobao.com www.jd.com open.163.com github.com en.wikipedia.org www.startpage.com
+
 ### Makefile ends here
