@@ -26,7 +26,7 @@
 
 	make
 
-The executable file are placed under `bin/`. Copy it to wherever you like. Enjoy.
+The executable file is placed under `bin/`. Copy it to wherever you like. Enjoy.
 
 # Command line options and args
 
@@ -34,16 +34,16 @@ See `doh --help`.
 
 # Config
 
-* logfile: optional. write log to which file, empty means stdout. empty by default.
+* logfile: optional. indicate which file log should be written to. empty means stdout. empty by default.
 * loglevel: optional. log level. warning by default.
 * input-protocol: required. see "protocol and url".
 * input-url: required. see "protocol and url".
-* input-cert-file: optional. cert file when you use doh.
-* input-key-file: optional. key file when you use doh.
+* input-cert-file: optional. cert file when use doh.
+* input-key-file: optional. key file when use doh.
 * edns-client-subnet: optional. it could be empty, means don't do anything. or "client", means read remote address and put it into edns-client-subnet. or an ip address/cidr subnet, means put this address into edns-client-subnet. empty by default.
 * output-protocol: required. see "protocol and url".
 * output-url: required. see "protocol and url".
-* output-insecure: optional. don't verify the cert from server.
+* output-insecure: optional. don't verify the certificate from the server.
 
 # Protocol and URL
 
@@ -55,13 +55,13 @@ There have three different protocols in DNS:
 * tcp
 * tcp-tls
 
-Here is some examples as output.
+Here are some examples as output.
 
 	doh -q --protocol dns --url udp://114.114.114.114:53 www.baidu.com
 	doh -q --protocol dns --url tcp://114.114.114.114:53 www.baidu.com
 	doh -q --protocol dns --url tcp-tls://one.one.one.one:853 www.baidu.com
 
-Here is some examples as input.
+Here are some examples as input.
 
 	doh --config udp-rfc8484.json
 	dig www.baidu.com @127.0.0.1 -p 5053
@@ -75,16 +75,16 @@ DoH means DNS over HTTPS. It include two protocols:
 * rfc8484
 * google
 
-As output protocol, you should indicate rfc8484 or google, to specify which exactly protocol we actually use.
+As an output protocol, you should indicate rfc8484 or google, to specify which exactly protocol we actually use.
 
-Here is some examples as output.
+Here are some examples as output.
 
 	doh -q --protocol rfc8484 --url https://security.cloudflare-dns.com/dns-query www.baidu.com
 	doh -q --protocol google --url https://dns.google.com/resolve www.baidu.com
 
-As input protocol, doh are fine. We support both protocols on the same http/https server.
+As an input protocol, doh are fine. We support both protocols on the same http/https server.
 
-Here is some examples as input.
+Here are some examples as input.
 
 	doh --config doh.json
 	doh -q --protocol rfc8484 --url http://localhost:8053/dns-query www.baidu.com
@@ -149,11 +149,11 @@ Here is some examples as input.
 
 # Suggestions in China
 
-1. Don't use Quad9. Wrong result means useless.
+1. Don't use Quad9. Wrong results means useless.
 2. I won't suggest Cloudflare. Not the best result. Don't use it unless running out of other options.
 3. Google/OpenDNS with udp (direct connect, will be interfered by the GFW). Find yourself a way to dodge the firewall.
 4. Google with edns-client-subnet (proxy needed).
-5. If you want tcp-tls, the first choice is Google (proxy needed in China), then Cloudflare (no proxy needed in China).
+5. If you want tcp-tls, the first choice is Google (proxy needed), then Cloudflare (don't need proxy).
 6. If you want rfc8484, the only option here is Cloudflare. Don't use Quad9.
 
 # TODO
