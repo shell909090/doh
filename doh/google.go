@@ -5,7 +5,6 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"strconv"
@@ -69,7 +68,6 @@ func (cli *GoogleClient) Exchange(ctx context.Context, quiz *dns.Msg) (ans *dns.
 		}
 	}
 
-	query.Add("ct", "application/dns-message")
 	req.URL.RawQuery = query.Encode()
 
 	resp, err := cli.transport.RoundTrip(req)
@@ -84,14 +82,14 @@ func (cli *GoogleClient) Exchange(ctx context.Context, quiz *dns.Msg) (ans *dns.
 		return
 	}
 
-	bbody, err := ioutil.ReadAll(resp.Body)
+	jsonresp := &DNSMsg{}
+	err = json.NewDecoder(resp.Body).Decode(&jsonresp)
 	if err != nil {
 		logger.Error(err.Error())
 		return
 	}
 
-	ans = &dns.Msg{}
-	err = ans.Unpack(bbody)
+	ans, err = jsonresp.TranslateAnswer(quiz)
 	if err != nil {
 		logger.Error(err.Error())
 		return

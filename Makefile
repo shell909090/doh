@@ -47,15 +47,9 @@ test-edns: bin/doh
 	bin/doh -q --short --url udp://114.114.114.114:53 www.google.com
 	bin/doh -q --short --subnet 101.80.0.0 --url udp://114.114.114.114:53 www.google.com
 	bin/doh -q --short --subnet 104.244.42.1 --url udp://114.114.114.114:53 www.google.com
-	bin/doh -q --short  --url tcp://114.114.114.114:53 www.google.com
-	bin/doh -q --short --subnet 101.80.0.0  --url tcp://114.114.114.114:53 www.google.com
-	bin/doh -q --short --subnet 104.244.42.1 --url tcp://114.114.114.114:53 www.google.com
 	bin/doh -q --short --url tcp-tls://one.one.one.one:853 www.google.com
 	bin/doh -q --short --subnet 101.80.0.0 --url tcp-tls://one.one.one.one:853 www.google.com
 	bin/doh -q --short --subnet 104.244.42.1 --url tcp-tls://one.one.one.one:853 www.google.com
-	bin/doh -q --short --url https://security.cloudflare-dns.com/dns-query www.google.com
-	bin/doh -q --short --subnet 101.80.0.0 --url https://security.cloudflare-dns.com/dns-query www.google.com
-	bin/doh -q --short --subnet 104.244.42.1 --url https://security.cloudflare-dns.com/dns-query www.google.com
 	bin/doh -q --short --url https://dns.google.com/resolve www.google.com
 	bin/doh -q --short --subnet 101.80.0.0 --url https://dns.google.com/resolve www.google.com
 	bin/doh -q --short --subnet 104.244.42.1 --url https://dns.google.com/resolve www.google.com
