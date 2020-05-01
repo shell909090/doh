@@ -19,14 +19,7 @@ type DnsClient struct {
 	cli  *dns.Client
 }
 
-func NewDnsClient(URL string) (cli *DnsClient, err error) {
-	var u *url.URL
-	u, err = url.Parse(URL)
-	if err != nil {
-		logger.Error(err.Error())
-		return
-	}
-
+func NewDnsClient(URL string, u *url.URL) (cli *DnsClient) {
 	cli = &DnsClient{
 		host: u.Host,
 		URL:  URL,

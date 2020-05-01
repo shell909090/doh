@@ -1,7 +1,5 @@
 {
     "loglevel": "INFO",
-    "input-protocol": "doh",
     "input-url": "http://0.0.0.0:8053",
-    "output-protocol": "dns",
     "output-url": "udp://114.114.114.114:53/"
 }

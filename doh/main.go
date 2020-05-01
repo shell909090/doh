@@ -82,9 +82,38 @@ func SetLogging(logfile, loglevel string) (err error) {
 }
 
 func CreateOutput(cfg *Config) (client Client, err error) {
+	var u *url.URL
+	u, err = url.Parse(cfg.OutputURL)
+	if err != nil {
+		logger.Error(err.Error())
+		return
+	}
+
+	if cfg.OutputProtocol == "" {
+		switch u.Scheme {
+		case "udp", "tcp", "tcp-tls":
+			cfg.OutputProtocol = "dns"
+
+		case "http", "https":
+			switch u.Path {
+			case "/resolve":
+				cfg.OutputProtocol = "google"
+			case "/dns-query":
+				cfg.OutputProtocol = "rfc8484"
+			default:
+				err = ErrConfigParse
+				return
+			}
+
+		default:
+			err = ErrConfigParse
+			return
+		}
+	}
+
 	switch cfg.OutputProtocol {
-	case "dns", "":
-		client, err = NewDnsClient(cfg.OutputURL)
+	case "dns":
+		client = NewDnsClient(cfg.OutputURL, u)
 	case "google":
 		client = NewGoogleClient(cfg.OutputURL, cfg.OutputInsecure)
 	case "rfc8484":
@@ -104,8 +133,20 @@ func CreateInput(cfg *Config, cli Client) (srv Server, err error) {
 		return
 	}
 
+	if cfg.InputProtocol == "" {
+		switch u.Scheme {
+		case "udp", "tcp", "tcp-tls":
+			cfg.InputProtocol = "dns"
+		case "http", "https":
+			cfg.InputProtocol = "doh"
+		default:
+			err = ErrConfigParse
+			return
+		}
+	}
+
 	switch cfg.InputProtocol {
-	case "dns", "":
+	case "dns":
 		srv, err = NewDnsServer(cli, u.Scheme, u.Host, cfg.EdnsClientSubnet)
 	case "doh":
 		srv, err = NewDoHServer(cli, u.Scheme, u.Host, cfg.InputCertFile, cfg.InputKeyFile, cfg.EdnsClientSubnet)
@@ -234,7 +275,7 @@ func main() {
 			}
 		}
 
-	case cfg.InputProtocol != "" && cfg.InputURL != "":
+	case cfg.InputURL != "":
 		if Profile != "" {
 			go func() {
 				logger.Infof("golang profile %s", Profile)

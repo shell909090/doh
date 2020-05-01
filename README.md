@@ -36,12 +36,12 @@ See `doh --help`.
 
 * logfile: optional. indicate which file log should be written to. empty means stdout. empty by default.
 * loglevel: optional. log level. warning by default.
-* input-protocol: required. see "protocol and url".
+* input-protocol: optional. see "protocol and url". if empty, program will auto guess.
 * input-url: required. see "protocol and url".
 * input-cert-file: optional. cert file when use doh.
 * input-key-file: optional. key file when use doh.
 * edns-client-subnet: optional. it could be empty, means don't do anything. or "client", means read remote address and put it into edns-client-subnet. or an ip address/cidr subnet, means put this address into edns-client-subnet. empty by default.
-* output-protocol: required. see "protocol and url".
+* output-protocol: optional. see "protocol and url". if empty, program will auto guess.
 * output-url: required. see "protocol and url".
 * output-insecure: optional. don't verify the certificate from the server.
 
@@ -101,6 +101,7 @@ Here are some examples as input.
 * Domain: public1.114dns.com
 * IP: 114.114.114.114
 * Accept protocols: udp/tcp
+* Response time in Shanghai: udp:12, tcp:22
 * Don't accept edns-client-subnet, in any protocols.
 * No proxy needed in China.
 
@@ -109,6 +110,8 @@ Here are some examples as input.
 * Domain: one.one.one.one
 * IP: 1.1.1.1/1.0.0.1
 * Accept protocols: udp/tcp/tcp-tls
+* Response time in Shanghai: udp:78, tcp:157, tcp-tls:250
+* Response time in Japan IDC: udp:2, tcp:2, tcp-tls:22
 * Don't accept edns-client-subnet, in any protocols.
 * No proxy needed in China.
 * Accuracy: not best result in China.
@@ -118,6 +121,8 @@ Here are some examples as input.
 * Domain: security.cloudflare-dns.com
 * IP: 104.18.2.55/104.18.3.55
 * Accept protocols: rfc8484
+* Response time in Shanghai: rfc8484:83
+* Response time in Japan IDC: rfc8484:4
 * Don't accept edns-client-subnet, in any protocols.
 * No proxy needed in China.
 * Accuracy: not best result in China.
@@ -127,14 +132,18 @@ Here are some examples as input.
 * Domain: dns.google.com
 * IP: 8.8.8.8/8.8.4.4
 * Accept protocols: udp/tcp/tcp-tls/google.
+* Response time in Shanghai: udp:75, tcp:90, tcp-tls:250
+* Response time in Japan IDC: udp:1, tcp:2, tcp-tls:40, google:5-100
 * Accept edns-client-subnet with protocol google.
-* A proxy will be needed in China.
+* A proxy will be needed for protocol google in China.
 
 ## OpenDNS
 
 * Domain: dns.opendns.com
 * IP: 208.67.222.222/208.67.220.220
 * Accept protocols: udp/tcp
+* Response time in Shanghai: udp:78, tcp:156
+* Response time in Japan IDC: udp:1, tcp:2
 * Don't accept edns-client-subnet, in any protocols.
 * No proxy needed in China.
 
@@ -143,6 +152,8 @@ Here are some examples as input.
 * Domain: dns.quad9.net
 * IP: 9.9.9.9/149.112.112.112
 * Accept protocols: udp/tcp/tcp-tls/rfc8484
+* Response time in Shanghai: udp:85, tcp:170, tcp-tls:280, rfc8484: 80
+* Response time in Japan IDC: udp:115, tcp:250, tcp-tls:370, rfc8484: 1
 * Don't accept edns-client-subnet, in any protocols.
 * No proxy needed in China.
 * Accuracy: wrong result in China (taobao and baidu).

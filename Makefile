@@ -30,35 +30,35 @@ build-deb:
 	mv -f ../doh_* debuild
 
 test-query: bin/doh
-	bin/doh -q --protocol dns --url udp://114.114.114.114:53 www.baidu.com
-	bin/doh -q --protocol dns --url tcp://114.114.114.114:53 www.baidu.com
-	bin/doh -q --protocol dns --url tcp-tls://one.one.one.one:853 www.baidu.com
-	bin/doh -q --protocol rfc8484 --url https://security.cloudflare-dns.com/dns-query www.baidu.com
-	bin/doh -q --protocol google --url https://dns.google.com/resolve www.baidu.com
+	bin/doh -q --url udp://114.114.114.114:53 www.baidu.com
+	bin/doh -q --url tcp://114.114.114.114:53 www.baidu.com
+	bin/doh -q --url tcp-tls://one.one.one.one:853 www.baidu.com
+	bin/doh -q --url https://security.cloudflare-dns.com/dns-query www.baidu.com
+	bin/doh -q --url https://dns.google.com/resolve www.baidu.com
 
 test-short: bin/doh
-	bin/doh -q --short --protocol dns --url udp://114.114.114.114:53 www.baidu.com
-	bin/doh -q --short --protocol dns --url tcp://114.114.114.114:53 www.baidu.com
-	bin/doh -q --short --protocol dns --url tcp-tls://one.one.one.one:853 www.baidu.com
-	bin/doh -q --short --protocol rfc8484 --url https://security.cloudflare-dns.com/dns-query www.baidu.com
-	bin/doh -q --short --protocol google --url https://dns.google.com/resolve www.baidu.com
+	bin/doh -q --short --url udp://114.114.114.114:53 www.baidu.com
+	bin/doh -q --short --url tcp://114.114.114.114:53 www.baidu.com
+	bin/doh -q --short --url tcp-tls://one.one.one.one:853 www.baidu.com
+	bin/doh -q --short --url https://security.cloudflare-dns.com/dns-query www.baidu.com
+	bin/doh -q --short --url https://dns.google.com/resolve www.baidu.com
 
 test-edns: bin/doh
-	bin/doh -q --short --protocol dns --url udp://114.114.114.114:53 www.google.com
-	bin/doh -q --short --subnet 101.80.0.0 --protocol dns --url udp://114.114.114.114:53 www.google.com
-	bin/doh -q --short --subnet 104.244.42.1 --protocol dns --url udp://114.114.114.114:53 www.google.com
-	bin/doh -q --short --protocol dns --url tcp://114.114.114.114:53 www.google.com
-	bin/doh -q --short --subnet 101.80.0.0 --protocol dns --url tcp://114.114.114.114:53 www.google.com
-	bin/doh -q --short --subnet 104.244.42.1 --protocol dns --url tcp://114.114.114.114:53 www.google.com
-	bin/doh -q --short --protocol dns --url tcp-tls://one.one.one.one:853 www.google.com
-	bin/doh -q --short --subnet 101.80.0.0 --protocol dns --url tcp-tls://one.one.one.one:853 www.google.com
-	bin/doh -q --short --subnet 104.244.42.1 --protocol dns --url tcp-tls://one.one.one.one:853 www.google.com
-	bin/doh -q --short --protocol rfc8484 --url https://security.cloudflare-dns.com/dns-query www.google.com
-	bin/doh -q --short --subnet 101.80.0.0 --protocol rfc8484 --url https://security.cloudflare-dns.com/dns-query www.google.com
-	bin/doh -q --short --subnet 104.244.42.1 --protocol rfc8484 --url https://security.cloudflare-dns.com/dns-query www.google.com
-	bin/doh -q --short --protocol google --url https://dns.google.com/resolve www.google.com
-	bin/doh -q --short --subnet 101.80.0.0 --protocol google --url https://dns.google.com/resolve www.google.com
-	bin/doh -q --short --subnet 104.244.42.1 --protocol google --url https://dns.google.com/resolve www.google.com
+	bin/doh -q --short --url udp://114.114.114.114:53 www.google.com
+	bin/doh -q --short --subnet 101.80.0.0 --url udp://114.114.114.114:53 www.google.com
+	bin/doh -q --short --subnet 104.244.42.1 --url udp://114.114.114.114:53 www.google.com
+	bin/doh -q --short  --url tcp://114.114.114.114:53 www.google.com
+	bin/doh -q --short --subnet 101.80.0.0  --url tcp://114.114.114.114:53 www.google.com
+	bin/doh -q --short --subnet 104.244.42.1 --url tcp://114.114.114.114:53 www.google.com
+	bin/doh -q --short --url tcp-tls://one.one.one.one:853 www.google.com
+	bin/doh -q --short --subnet 101.80.0.0 --url tcp-tls://one.one.one.one:853 www.google.com
+	bin/doh -q --short --subnet 104.244.42.1 --url tcp-tls://one.one.one.one:853 www.google.com
+	bin/doh -q --short --url https://security.cloudflare-dns.com/dns-query www.google.com
+	bin/doh -q --short --subnet 101.80.0.0 --url https://security.cloudflare-dns.com/dns-query www.google.com
+	bin/doh -q --short --subnet 104.244.42.1 --url https://security.cloudflare-dns.com/dns-query www.google.com
+	bin/doh -q --short --url https://dns.google.com/resolve www.google.com
+	bin/doh -q --short --subnet 101.80.0.0 --url https://dns.google.com/resolve www.google.com
+	bin/doh -q --short --subnet 104.244.42.1 --url https://dns.google.com/resolve www.google.com
 
 test-rfc8484: bin/doh
 	bin/doh --config udp-rfc8484.json &
@@ -79,16 +79,16 @@ test-google: bin/doh
 test-http: bin/doh
 	bin/doh --loglevel DEBUG --config doh.json &
 	sleep 1
-	bin/doh -q --short --protocol rfc8484 --url http://localhost:8053/dns-query www.baidu.com
-	bin/doh -q --short --protocol google --url http://localhost:8053/resolve www.baidu.com
+	bin/doh -q --short --url http://localhost:8053/dns-query www.baidu.com
+	bin/doh -q --short --url http://localhost:8053/resolve www.baidu.com
 	curl -s "http://localhost:8053/resolve?name=www.baidu.com" | jq
 	killall doh
 
 test-https: bin/doh
 	bin/doh --config dohs.json &
 	sleep 1
-	bin/doh -q --short --protocol rfc8484 --url https://localhost:8153/dns-query --insecure www.baidu.com
-	bin/doh -q --short --protocol google --url https://localhost:8153/resolve --insecure www.baidu.com
+	bin/doh -q --short --url https://localhost:8153/dns-query --insecure www.baidu.com
+	bin/doh -q --short --url https://localhost:8153/resolve --insecure www.baidu.com
 	curl -s -k "https://localhost:8153/resolve?name=www.baidu.com" | jq
 	killall doh
 
