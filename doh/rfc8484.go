@@ -49,6 +49,9 @@ func NewRfc8484Client(URL string, Insecure bool) (cli *Rfc8484Client) {
 	return
 }
 
+func (cli *Rfc8484Client) Url() (u string) {
+	return cli.URL
+}
 func (cli *Rfc8484Client) Exchange(ctx context.Context, quiz *dns.Msg) (ans *dns.Msg, err error) {
 	bquiz, err := quiz.Pack()
 	if err != nil {

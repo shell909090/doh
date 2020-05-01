@@ -6,15 +6,18 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
+	"time"
 
 	"github.com/miekg/dns"
 	logging "github.com/op/go-logging"
 )
 
 type Client interface {
+	Url() (u string)
 	Exchange(ctx context.Context, quiz *dns.Msg) (ans *dns.Msg, err error)
 }
 
@@ -39,6 +42,7 @@ var (
 	ErrConfigParse = errors.New("config parse error")
 	logger         = logging.MustGetLogger("")
 	Short          bool
+	Subnet         string
 )
 
 func LoadJson(configfile string, cfg interface{}) (err error) {
@@ -80,13 +84,7 @@ func SetLogging(logfile, loglevel string) (err error) {
 func CreateOutput(cfg *Config) (client Client, err error) {
 	switch cfg.OutputProtocol {
 	case "dns", "":
-		var u *url.URL
-		u, err = url.Parse(cfg.OutputURL)
-		if err != nil {
-			logger.Error(err.Error())
-			return
-		}
-		client = NewDnsClient(u.Scheme, u.Host)
+		client, err = NewDnsClient(cfg.OutputURL)
 	case "google":
 		client = NewGoogleClient(cfg.OutputURL, cfg.OutputInsecure)
 	case "rfc8484":
@@ -128,11 +126,26 @@ func QueryDN(cli Client, dn string, qtype uint16) (err error) {
 	quiz := &dns.Msg{}
 	quiz.SetQuestion(dns.Fqdn(dn), qtype)
 
+	if Subnet != "" {
+		var addr net.IP
+		var mask uint8
+		addr, mask, err = ParseSubnet(Subnet)
+		if err != nil {
+			logger.Error(err.Error())
+			return
+		}
+		appendEdns0Subnet(quiz, addr, mask)
+	}
+
+	start := time.Now()
+
 	ans, err := cli.Exchange(ctx, quiz)
 	if err != nil {
 		logger.Error(err.Error())
 		return
 	}
+
+	elapsed := time.Since(start)
 
 	if Short {
 		for _, rr := range ans.Answer {
@@ -147,6 +160,9 @@ func QueryDN(cli Client, dn string, qtype uint16) (err error) {
 		}
 	} else {
 		fmt.Println(ans.String())
+		fmt.Printf(";; Query time: %d msec\n", elapsed.Milliseconds())
+		fmt.Printf(";; SERVER: %s\n", cli.Url())
+		fmt.Printf(";; WHEN: %s\n\n", start.Format(time.UnixDate))
 	}
 	return
 }
@@ -166,6 +182,7 @@ func main() {
 	flag.StringVar(&Profile, "profile", "", "run profile")
 	flag.BoolVar(&Query, "q", false, "query")
 	flag.BoolVar(&Short, "short", false, "show short answer")
+	flag.StringVar(&Subnet, "subnet", "", "query subnet")
 	flag.BoolVar(&IPv4, "4", false, "query ipv4 only")
 	flag.BoolVar(&IPv6, "6", false, "query ipv6 only")
 	flag.StringVar(&Protocol, "protocol", "", "output protocol")

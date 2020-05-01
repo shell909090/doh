@@ -42,6 +42,10 @@ func NewGoogleClient(URL string, Insecure bool) (cli *GoogleClient) {
 	return
 }
 
+func (cli *GoogleClient) Url() (u string) {
+	return cli.URL
+}
+
 func (cli *GoogleClient) Exchange(ctx context.Context, quiz *dns.Msg) (ans *dns.Msg, err error) {
 	req, err := http.NewRequestWithContext(ctx, "GET", cli.URL, nil)
 	if err != nil {

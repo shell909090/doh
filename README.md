@@ -1,6 +1,20 @@
+# Table of content
+
+* [Abstract](#abstract)
+
 # Abstract
 
 [DNS over HTTPS](https://en.wikipedia.org/wiki/DNS_over_HTTPS) utils written by golang.
+
+# Compile
+
+	make
+
+# Install
+
+# Command line options and args
+
+# Config
 
 # Protocol and URL
 
@@ -50,7 +64,7 @@ As input protocol, doh are fine. We support both protocols on the same http/http
 * Don't accept edns-client-subnet, in any protocols.
 * No proxy needed in China.
 
-# Cloudflare
+# Cloudflare one
 
 * Domain: one.one.one.one
 * IP: 1.1.1.1/1.0.0.1
@@ -58,6 +72,8 @@ As input protocol, doh are fine. We support both protocols on the same http/http
 * Don't accept edns-client-subnet, in any protocols.
 * No proxy needed in China.
 * Accuracy: not best result in China.
+
+# Cloudflare doh
 
 * Domain: security.cloudflare-dns.com
 * IP: 104.18.2.55/104.18.3.55
@@ -104,3 +120,4 @@ As input protocol, doh are fine. We support both protocols on the same http/http
 
 * cache
 * record dns logs
+* multiple outputs, load balance

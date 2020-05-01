@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net"
+	"net/url"
 
 	"github.com/miekg/dns"
 )
@@ -13,24 +14,35 @@ var (
 )
 
 type DnsClient struct {
-	Net    string
-	Server string
-	cli    *dns.Client
+	host string
+	URL  string
+	cli  *dns.Client
 }
 
-func NewDnsClient(Net, Server string) (cli *DnsClient) {
+func NewDnsClient(URL string) (cli *DnsClient, err error) {
+	var u *url.URL
+	u, err = url.Parse(URL)
+	if err != nil {
+		logger.Error(err.Error())
+		return
+	}
+
 	cli = &DnsClient{
-		Net:    Net,
-		Server: Server,
+		host: u.Host,
+		URL:  URL,
 		cli: &dns.Client{
-			Net: Net,
+			Net: u.Scheme,
 		},
 	}
 	return
 }
 
+func (cli *DnsClient) Url() (u string) {
+	return cli.URL
+}
+
 func (cli *DnsClient) Exchange(ctx context.Context, quiz *dns.Msg) (ans *dns.Msg, err error) {
-	ans, _, err = cli.cli.ExchangeContext(ctx, quiz, cli.Server)
+	ans, _, err = cli.cli.ExchangeContext(ctx, quiz, cli.host)
 	return
 }
 
@@ -100,6 +112,7 @@ func (srv *DnsServer) Run() (err error) {
 func ParseSubnet(subnet string) (ip net.IP, mask uint8, err error) {
 	ip, ipnet, err := net.ParseCIDR(subnet)
 	if err != nil {
+		err = nil
 		ip = net.ParseIP(subnet)
 		switch {
 		case ip == nil:

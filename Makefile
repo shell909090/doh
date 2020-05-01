@@ -20,22 +20,42 @@ bin/doh:
 	GOPATH="$$PWD/gopath":"$$GOPATH" go build -o bin/doh github.com/shell909090/doh/doh
 	rm -rf gopath
 
-test: test-query test-udp-rfc8484 test-http test-https
+install: bin/doh
+	install -d $(DESTDIR)/usr/bin/
+	install -m 755 -s bin/doh $(DESTDIR)/usr/bin/
 
-test-query: build
+test-query: bin/doh
+	bin/doh -q --protocol dns --url udp://114.114.114.114:53 www.baidu.com
+	bin/doh -q --protocol dns --url tcp://114.114.114.114:53 www.baidu.com
+	bin/doh -q --protocol dns --url tcp-tls://one.one.one.one:853 www.baidu.com
+	bin/doh -q --protocol rfc8484 --url https://security.cloudflare-dns.com/dns-query www.baidu.com
+	bin/doh -q --protocol google --url https://dns.google.com/resolve www.baidu.com
+
+test-short: bin/doh
 	bin/doh -q --short --protocol dns --url udp://114.114.114.114:53 www.baidu.com
 	bin/doh -q --short --protocol dns --url tcp://114.114.114.114:53 www.baidu.com
 	bin/doh -q --short --protocol dns --url tcp-tls://one.one.one.one:853 www.baidu.com
 	bin/doh -q --short --protocol rfc8484 --url https://security.cloudflare-dns.com/dns-query www.baidu.com
 	bin/doh -q --short --protocol google --url https://dns.google.com/resolve www.baidu.com
 
+test-edns: bin/doh
 	bin/doh -q --short --protocol dns --url udp://114.114.114.114:53 www.google.com
+	bin/doh -q --short --subnet 101.80.0.0 --protocol dns --url udp://114.114.114.114:53 www.google.com
+	bin/doh -q --short --subnet 104.244.42.1 --protocol dns --url udp://114.114.114.114:53 www.google.com
 	bin/doh -q --short --protocol dns --url tcp://114.114.114.114:53 www.google.com
+	bin/doh -q --short --subnet 101.80.0.0 --protocol dns --url tcp://114.114.114.114:53 www.google.com
+	bin/doh -q --short --subnet 104.244.42.1 --protocol dns --url tcp://114.114.114.114:53 www.google.com
 	bin/doh -q --short --protocol dns --url tcp-tls://one.one.one.one:853 www.google.com
+	bin/doh -q --short --subnet 101.80.0.0 --protocol dns --url tcp-tls://one.one.one.one:853 www.google.com
+	bin/doh -q --short --subnet 104.244.42.1 --protocol dns --url tcp-tls://one.one.one.one:853 www.google.com
 	bin/doh -q --short --protocol rfc8484 --url https://security.cloudflare-dns.com/dns-query www.google.com
+	bin/doh -q --short --subnet 101.80.0.0 --protocol rfc8484 --url https://security.cloudflare-dns.com/dns-query www.google.com
+	bin/doh -q --short --subnet 104.244.42.1 --protocol rfc8484 --url https://security.cloudflare-dns.com/dns-query www.google.com
 	bin/doh -q --short --protocol google --url https://dns.google.com/resolve www.google.com
+	bin/doh -q --short --subnet 101.80.0.0 --protocol google --url https://dns.google.com/resolve www.google.com
+	bin/doh -q --short --subnet 104.244.42.1 --protocol google --url https://dns.google.com/resolve www.google.com
 
-test-udp-rfc8484: bin/doh
+test-rfc8484: bin/doh
 	bin/doh --config udp-rfc8484.json &
 	sleep 1
 	dig +short www.google.com @127.0.0.1 -p 5053
@@ -43,7 +63,7 @@ test-udp-rfc8484: bin/doh
 	dig +short +subnet=104.244.42.1 www.google.com @127.0.0.1 -p 5053
 	killall doh
 
-test-udp-google: bin/doh
+test-google: bin/doh
 	bin/doh --config udp-google.json &
 	sleep 1
 	dig +short www.google.com @127.0.0.1 -p 5153
@@ -55,6 +75,7 @@ test-http: bin/doh
 	bin/doh --loglevel DEBUG --config doh.json &
 	sleep 1
 	bin/doh -q --short --protocol rfc8484 --url http://localhost:8053/dns-query www.baidu.com
+	bin/doh -q --short --protocol google --url http://localhost:8053/resolve www.baidu.com
 	curl -s "http://localhost:8053/resolve?name=www.baidu.com" | jq
 	killall doh
 
@@ -62,6 +83,8 @@ test-https: bin/doh
 	bin/doh --config dohs.json &
 	sleep 1
 	bin/doh -q --short --protocol rfc8484 --url https://localhost:8153/dns-query --insecure www.baidu.com
+	bin/doh -q --short --protocol google --url https://localhost:8153/resolve --insecure www.baidu.com
+	curl -s -k "https://localhost:8153/resolve?name=www.baidu.com" | jq
 	killall doh
 
 ### Makefile ends here
