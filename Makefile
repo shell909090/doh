@@ -25,7 +25,7 @@ install: bin/doh
 	install -m 755 -s bin/doh $(DESTDIR)/usr/bin/
 
 build-deb:
-	dpkg-buildpackage
+	dpkg-buildpackage --no-sign
 	mkdir -p debuild
 	mv -f ../doh_* debuild
 
