@@ -1,20 +1,49 @@
 # Table of content
 
 * [Abstract](#abstract)
+* [Compile and Install](#compile-and-install)
+* [Command line options and args](#command-line-options-and-args)
+* [Config](#config)
+* [Protocol and URL](#protocol-and-url)
+  * [dns](#dns)
+  * [doh](#doh)
+* [Public recursive server](#public-recursive-server)
+  * [114](#114)
+  * [Cloudflare one](#cloudflare-one)
+  * [Cloudflare doh](#cloudflare-doh)
+  * [Google](#google)
+  * [OpenDNS](#OpenDNS)
+  * [Quad9](#Quad9)
+* [Config](#config)
+* [Suggestions in China](#suggestions-in-china)
+* [TODO](#todo)
 
 # Abstract
 
 [DNS over HTTPS](https://en.wikipedia.org/wiki/DNS_over_HTTPS) utils written by golang.
 
-# Compile
+# Compile and Install
 
 	make
 
-# Install
+The executable file are placed under `bin/`. Copy it to wherever you like. Enjoy.
 
 # Command line options and args
 
+See `doh --help`.
+
 # Config
+
+* logfile: optional. write log to which file, empty means stdout. empty by default.
+* loglevel: optional. log level. warning by default.
+* input-protocol: required. see "protocol and url".
+* input-url: required. see "protocol and url".
+* input-cert-file: optional. cert file when you use doh.
+* input-key-file: optional. key file when you use doh.
+* edns-client-subnet: optional. it could be empty, means don't do anything. or "client", means read remote address and put it into edns-client-subnet. or an ip address/cidr subnet, means put this address into edns-client-subnet. empty by default.
+* output-protocol: required. see "protocol and url".
+* output-url: required. see "protocol and url".
+* output-insecure: optional. don't verify the cert from server.
 
 # Protocol and URL
 
@@ -26,6 +55,19 @@ There have three different protocols in DNS:
 * tcp
 * tcp-tls
 
+Here is some examples as output.
+
+	doh -q --protocol dns --url udp://114.114.114.114:53 www.baidu.com
+	doh -q --protocol dns --url tcp://114.114.114.114:53 www.baidu.com
+	doh -q --protocol dns --url tcp-tls://one.one.one.one:853 www.baidu.com
+
+Here is some examples as input.
+
+	doh --config udp-rfc8484.json
+	dig www.baidu.com @127.0.0.1 -p 5053
+	doh --config udp-google.json
+	dig www.baidu.com @127.0.0.1 -p 5153
+
 ## doh
 
 DoH means DNS over HTTPS. It include two protocols:
@@ -35,28 +77,26 @@ DoH means DNS over HTTPS. It include two protocols:
 
 As output protocol, you should indicate rfc8484 or google, to specify which exactly protocol we actually use.
 
-As input protocol, doh are fine. We support both protocols on the same http/https server.
-
-# Examples
-
-	doh -q --protocol dns --url udp://114.114.114.114:53 www.baidu.com
-	doh -q --protocol dns --url tcp://114.114.114.114:53 www.baidu.com
-	doh -q --protocol dns --url tcp-tls://one.one.one.one:853 www.baidu.com
+Here is some examples as output.
 
 	doh -q --protocol rfc8484 --url https://security.cloudflare-dns.com/dns-query www.baidu.com
-	# with proxy
 	doh -q --protocol google --url https://dns.google.com/resolve www.baidu.com
 
-	doh --config udp-rfc8484.json
-	dig www.baidu.com @127.0.0.1 -p 5053
+As input protocol, doh are fine. We support both protocols on the same http/https server.
+
+Here is some examples as input.
 
 	doh --config doh.json
 	doh -q --protocol rfc8484 --url http://localhost:8053/dns-query www.baidu.com
+	doh -q --protocol google --url http://localhost:8053/resolve www.baidu.com
 
 	doh --config dohs.json
 	doh -q --protocol rfc8484 --url https://localhost:8153/dns-query --insecure www.baidu.com
+	doh -q --protocol google --url https://localhost:8153/resolve --insecure www.baidu.com
 
-# 114
+# Public recursive server
+
+## 114
 
 * Domain: public1.114dns.com
 * IP: 114.114.114.114
@@ -64,7 +104,7 @@ As input protocol, doh are fine. We support both protocols on the same http/http
 * Don't accept edns-client-subnet, in any protocols.
 * No proxy needed in China.
 
-# Cloudflare one
+## Cloudflare one
 
 * Domain: one.one.one.one
 * IP: 1.1.1.1/1.0.0.1
@@ -73,7 +113,7 @@ As input protocol, doh are fine. We support both protocols on the same http/http
 * No proxy needed in China.
 * Accuracy: not best result in China.
 
-# Cloudflare doh
+## Cloudflare doh
 
 * Domain: security.cloudflare-dns.com
 * IP: 104.18.2.55/104.18.3.55
@@ -82,7 +122,7 @@ As input protocol, doh are fine. We support both protocols on the same http/http
 * No proxy needed in China.
 * Accuracy: not best result in China.
 
-# Google
+## Google
 
 * Domain: dns.google.com
 * IP: 8.8.8.8/8.8.4.4
@@ -90,7 +130,7 @@ As input protocol, doh are fine. We support both protocols on the same http/http
 * Accept edns-client-subnet with protocol google.
 * A proxy will be needed in China.
 
-# OpenDNS
+## OpenDNS
 
 * Domain: dns.opendns.com
 * IP: 208.67.222.222/208.67.220.220
@@ -98,7 +138,7 @@ As input protocol, doh are fine. We support both protocols on the same http/http
 * Don't accept edns-client-subnet, in any protocols.
 * No proxy needed in China.
 
-# Quad9
+## Quad9
 
 * Domain: dns.quad9.net
 * IP: 9.9.9.9/149.112.112.112
@@ -107,7 +147,7 @@ As input protocol, doh are fine. We support both protocols on the same http/http
 * No proxy needed in China.
 * Accuracy: wrong result in China (taobao and baidu).
 
-# Suggested in China
+# Suggestions in China
 
 1. Don't use Quad9. Wrong result means useless.
 2. I won't suggest Cloudflare. Not the best result. Don't use it unless running out of other options.

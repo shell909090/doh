@@ -24,6 +24,11 @@ install: bin/doh
 	install -d $(DESTDIR)/usr/bin/
 	install -m 755 -s bin/doh $(DESTDIR)/usr/bin/
 
+build-deb:
+	dpkg-buildpackage
+	mkdir -p debuild
+	mv -f ../doh_* debuild
+
 test-query: bin/doh
 	bin/doh -q --protocol dns --url udp://114.114.114.114:53 www.baidu.com
 	bin/doh -q --protocol dns --url tcp://114.114.114.114:53 www.baidu.com
