@@ -1,0 +1,12 @@
+[Unit]
+Description=doh
+After=network-online.target
+
+[Service]
+EnvironmentFile=-/etc/default/doh
+ExecStart=/usr/bin/doh --config /etc/doh.json
+Restart=on-failure
+RestartSec=30
+
+[Install]
+WantedBy=multi-user.target
