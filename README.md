@@ -12,8 +12,9 @@
   * [Cloudflare one](#cloudflare-one)
   * [Cloudflare doh](#cloudflare-doh)
   * [Google](#google)
-  * [OpenDNS](#OpenDNS)
-  * [Quad9](#Quad9)
+  * [OpenDNS](#opendns)
+  * [Quad9](#quad9)
+  * [NextDNS](#nextdns)
 * [Config](#config)
 * [Suggestions in China](#suggestions-in-china)
 * [TODO](#todo)
@@ -96,6 +97,8 @@ Here are some examples as input.
 
 # Public recursive server
 
+Generally speaking, udp are accessible in China, but the results will been poisioned. tcp has been blocked. I won't repeat those in the next lines.
+
 ## 114
 
 * Domain: public1.114dns.com
@@ -103,7 +106,6 @@ Here are some examples as input.
 * Accept protocols: udp/tcp
 * Response time in Shanghai: udp:12, tcp:22
 * Don't accept edns-client-subnet, in any protocols.
-* No proxy needed in China.
 
 ## Cloudflare one
 
@@ -113,7 +115,7 @@ Here are some examples as input.
 * Response time in Shanghai: udp:78, tcp:157, tcp-tls:250
 * Response time in Japan IDC: udp:2, tcp:2, tcp-tls:22
 * Don't accept edns-client-subnet, in any protocols.
-* No proxy needed in China.
+* In China: tcp-tls accessible.
 * Accuracy: not best result in China.
 
 ## Cloudflare doh
@@ -124,7 +126,7 @@ Here are some examples as input.
 * Response time in Shanghai: rfc8484:83
 * Response time in Japan IDC: rfc8484:4
 * Don't accept edns-client-subnet, in any protocols.
-* No proxy needed in China.
+* In China: rfc8484 accessible.
 * Accuracy: not best result in China.
 
 ## Google
@@ -135,17 +137,18 @@ Here are some examples as input.
 * Response time in Shanghai: udp:75, tcp:90, tcp-tls:250
 * Response time in Japan IDC: udp:1, tcp:2, tcp-tls:40, google:5-100
 * Accept edns-client-subnet with protocol google.
+* In China: tcp-tls accessible. `google` need a proxy.
 * A proxy will be needed for protocol google in China.
 
 ## OpenDNS
 
-* Domain: dns.opendns.com
+* Domain: dns.opendns.com, doh.opendns.com (for rfc8484)
 * IP: 208.67.222.222/208.67.220.220
-* Accept protocols: udp/tcp
-* Response time in Shanghai: udp:78, tcp:156
-* Response time in Japan IDC: udp:1, tcp:2
+* Accept protocols: udp/tcp/rfc8484
+* Response time in Shanghai: udp:80, tcp:156, rfc8484:400
+* Response time in Japan IDC: udp:1, tcp:2, rfc8484:80
 * Don't accept edns-client-subnet, in any protocols.
-* No proxy needed in China.
+* In China: rfc8484 accessible.
 
 ## Quad9
 
@@ -155,7 +158,18 @@ Here are some examples as input.
 * Response time in Shanghai: udp:85, tcp:170, tcp-tls:280, rfc8484: 80
 * Response time in Japan IDC: udp:115, tcp:250, tcp-tls:370, rfc8484: 1
 * Don't accept edns-client-subnet, in any protocols.
-* No proxy needed in China.
+* In China: tcp-tls accessible. rfc8484 accessible.
+* Accuracy: wrong result in China (taobao and baidu).
+
+## AdGuard
+
+* Domain: dns.adguard.com
+* IP: 176.103.130.130/176.103.130.131
+* Accept protocols: udp/tcp/tcp-tls/rfc8484
+* Response time in Shanghai: udp:80, tcp:140, tcp-tls:280, rfc8484: 370
+* Response time in Japan IDC: udp:1, tcp:2, tcp-tls:70, rfc8484: 70
+* Don't accept edns-client-subnet, in any protocols.
+* In China: tcp-tls accessible. rfc8484 accessible.
 * Accuracy: wrong result in China (taobao and baidu).
 
 ## NextDNS
@@ -166,17 +180,18 @@ Here are some examples as input.
 * Response time in Shanghai: udp:50, tcp:100, tcp-tls:190, rfc8484: 192
 * Response time in Japan IDC: udp:1, tcp:2, tcp-tls:85, rfc8484: 100
 * Don't accept edns-client-subnet, in any protocols.
-* No proxy needed in China.
+* In China: tcp-tls accessible. rfc8484 accessible.
 * Accuracy: wrong result in China (taobao and baidu).
 
 # Suggestions in China
 
-1. Don't use Quad9. Wrong results means useless.
+1. Don't use Quad9, NextDNS, and AdGuard. Wrong results means useless.
 2. I won't suggest Cloudflare. Not the best result. Don't use it unless running out of other options.
-3. Google/OpenDNS with udp (direct connect, will be interfered by the GFW). Find yourself a way to dodge the firewall.
-4. Google with edns-client-subnet (proxy needed).
-5. If you want tcp-tls, the first choice is Google (proxy needed), then Cloudflare (don't need proxy).
-6. If you want rfc8484, the only option here is Cloudflare. Don't use Quad9.
+3. My first option is Google with tcp-tls. Accessible, accurate, easy.
+4. Secend option is Google/OpenDNS with udp. Find yourself a way to dodge the firewall.
+4. Google with edns-client-subnet (proxy needed) are barely acceptable.
+5. If you want tcp-tls, the first choice is Google, then Cloudflare.
+6. If you want rfc8484, the first choice is OpenDNS, then Cloudflare.
 
 # TODO
 

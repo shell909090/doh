@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"strconv"
@@ -68,6 +69,7 @@ func (cli *GoogleClient) Exchange(ctx context.Context, quiz *dns.Msg) (ans *dns.
 		}
 	}
 
+	query.Add("ct", "application/dns-message")
 	req.URL.RawQuery = query.Encode()
 
 	resp, err := cli.transport.RoundTrip(req)
@@ -77,17 +79,24 @@ func (cli *GoogleClient) Exchange(ctx context.Context, quiz *dns.Msg) (ans *dns.
 	}
 	defer resp.Body.Close()
 
-	jsonresp := &DNSMsg{}
-	err = json.NewDecoder(resp.Body).Decode(&jsonresp)
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		err = ErrRequest
+		return
+	}
+
+	bbody, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		logger.Error(err.Error())
 		return
 	}
 
-	ans, err = jsonresp.TranslateAnswer(quiz)
+	ans = &dns.Msg{}
+	err = ans.Unpack(bbody)
 	if err != nil {
+		logger.Error(err.Error())
 		return
 	}
+
 	return
 }
 
@@ -160,7 +169,7 @@ func (handler *GoogleHandler) ServeHTTP(w http.ResponseWriter, req *http.Request
 		appendEdns0Subnet(quiz, handler.clientAddr, handler.clientMask)
 	}
 
-	if req.Form.Get("dnssec") != "" {
+	if req.Form.Get("do") != "" {
 		quiz.SetEdns0(4096, true)
 	}
 
@@ -174,19 +183,30 @@ func (handler *GoogleHandler) ServeHTTP(w http.ResponseWriter, req *http.Request
 		return
 	}
 
-	jsonresp := &DNSMsg{}
-	err = jsonresp.FromAnswer(quiz, ans)
-	if err != nil {
-		logger.Error(err.Error())
-		w.WriteHeader(http.StatusBadGateway)
-		return
-	}
+	var bresp []byte
+	if req.Form.Get("ct") == "application/dns-message" {
+		bresp, err = ans.Pack()
+		if err != nil {
+			logger.Error(err.Error())
+			w.WriteHeader(http.StatusBadGateway)
+			return
+		}
 
-	bresp, err := json.Marshal(jsonresp)
-	if err != nil {
-		logger.Error(err.Error())
-		w.WriteHeader(http.StatusInternalServerError)
-		return
+	} else {
+		jsonresp := &DNSMsg{}
+		err = jsonresp.FromAnswer(quiz, ans)
+		if err != nil {
+			logger.Error(err.Error())
+			w.WriteHeader(http.StatusBadGateway)
+			return
+		}
+
+		bresp, err = json.Marshal(jsonresp)
+		if err != nil {
+			logger.Error(err.Error())
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
 	}
 
 	w.Header().Add("Content-Type", "application/dns-message")
