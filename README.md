@@ -158,6 +158,17 @@ Here are some examples as input.
 * No proxy needed in China.
 * Accuracy: wrong result in China (taobao and baidu).
 
+## NextDNS
+
+* Domain: dns.nextdns.io, 76dc6f.dns.nextdns.io (for tcp-tls)
+* IP: 45.90.28.253/45.90.30.253
+* Accept protocols: udp/tcp/tcp-tls/rfc8484
+* Response time in Shanghai: udp:50, tcp:100, tcp-tls:190, rfc8484: 192
+* Response time in Japan IDC: udp:1, tcp:2, tcp-tls:85, rfc8484: 100
+* Don't accept edns-client-subnet, in any protocols.
+* No proxy needed in China.
+* Accuracy: wrong result in China (taobao and baidu).
+
 # Suggestions in China
 
 1. Don't use Quad9. Wrong results means useless.
