@@ -4,7 +4,7 @@
 * [Compile and Install](#compile-and-install)
 * [Command line options and args](#command-line-options-and-args)
 * [Config](#config)
-* [Protocol and URL](#protocol-and-url)
+* [Drivers and Protocols](#drivers-and-protocols)
   * [dns](#dns)
   * [doh](#doh)
 * [Public recursive server](#public-recursive-server)
@@ -37,20 +37,20 @@ See `doh --help`.
 
 * logfile: optional. indicate which file log should be written to. empty means stdout. empty by default.
 * loglevel: optional. log level. warning by default.
-* input-protocol: optional. see "protocol and url". if empty, program will auto guess.
-* input-url: required. see "protocol and url".
+* input-driver: optional. see "drivers and protocols". if empty, program will auto guess.
+* input-url: required. see "drivers and protocols".
 * input-cert-file: optional. cert file when use doh.
 * input-key-file: optional. key file when use doh.
 * edns-client-subnet: optional. it could be empty, means don't do anything. or "client", means read remote address and put it into edns-client-subnet. or an ip address/cidr subnet, means put this address into edns-client-subnet. empty by default.
-* output-protocol: optional. see "protocol and url". if empty, program will auto guess.
-* output-url: required. see "protocol and url".
+* output-protocol: optional. see "drivers and protocols". if empty, program will auto guess.
+* output-url: required. see "drivers and protocols".
 * output-insecure: optional. don't verify the certificate from the server.
 
-# Protocol and URL
+# Drivers and Protocols
 
 ## dns
 
-There have three different protocols in DNS:
+There have three different protocols in driver DNS:
 
 * udp
 * tcp
@@ -58,9 +58,9 @@ There have three different protocols in DNS:
 
 Here are some examples as output.
 
-	doh -q --protocol dns --url udp://114.114.114.114:53 www.baidu.com
-	doh -q --protocol dns --url tcp://114.114.114.114:53 www.baidu.com
-	doh -q --protocol dns --url tcp-tls://one.one.one.one:853 www.baidu.com
+	doh -q --url udp://114.114.114.114:53 www.baidu.com
+	doh -q --url tcp://114.114.114.114:53 www.baidu.com
+	doh -q --url tcp-tls://one.one.one.one:853 www.baidu.com
 
 Here are some examples as input.
 
@@ -71,29 +71,29 @@ Here are some examples as input.
 
 ## doh
 
-DoH means DNS over HTTPS. It include two protocols:
+DoH means DNS over HTTPS. It include two drivers:
 
 * rfc8484
 * google
 
-As an output protocol, you should indicate rfc8484 or google, to specify which exactly protocol we actually use.
+As an output driver, you should indicate rfc8484 or google, to specify which exactly driver we actually use.
 
 Here are some examples as output.
 
-	doh -q --protocol rfc8484 --url https://security.cloudflare-dns.com/dns-query www.baidu.com
-	doh -q --protocol google --url https://dns.google.com/resolve www.baidu.com
+	doh -q --url https://security.cloudflare-dns.com/dns-query www.baidu.com
+	doh -q --url https://dns.google.com/resolve www.baidu.com
 
 As an input protocol, doh are fine. We support both protocols on the same http/https server.
 
 Here are some examples as input.
 
 	doh --config doh.json
-	doh -q --protocol rfc8484 --url http://localhost:8053/dns-query www.baidu.com
-	doh -q --protocol google --url http://localhost:8053/resolve www.baidu.com
+	doh -q --url http://localhost:8053/dns-query www.baidu.com
+	doh -q --url http://localhost:8053/resolve www.baidu.com
 
 	doh --config dohs.json
-	doh -q --protocol rfc8484 --url https://localhost:8153/dns-query --insecure www.baidu.com
-	doh -q --protocol google --url https://localhost:8153/resolve --insecure www.baidu.com
+	doh -q --url https://localhost:8153/dns-query --insecure www.baidu.com
+	doh -q --url https://localhost:8153/resolve --insecure www.baidu.com
 
 # Public recursive server
 

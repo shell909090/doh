@@ -1,5 +1,6 @@
 {
-    "loglevel": "INFO",
-    "input-url": "udp://0.0.0.0:5053",
-    "output-url": "https://security.cloudflare-dns.com/dns-query"
+    "service-url": "udp://0.0.0.0:5053",
+    "client": {
+	"url": "https://security.cloudflare-dns.com/dns-query"
+    }
 }

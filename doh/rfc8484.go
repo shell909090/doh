@@ -10,6 +10,7 @@ import (
 	"io/ioutil"
 	"net"
 	"net/http"
+	"net/url"
 
 	"github.com/miekg/dns"
 )
@@ -209,20 +210,27 @@ func (handler *Rfc8484Handler) ServeHTTP(w http.ResponseWriter, req *http.Reques
 }
 
 type DoHServer struct {
-	Scheme   string
-	Addr     string
-	CertFile string
-	KeyFile  string
+	scheme   string
+	addr     string
+	certFile string
+	keyFile  string
 	cli      Client
 	mux      *http.ServeMux
 }
 
-func NewDoHServer(cli Client, Scheme, Addr, CertFile, KeyFile, EdnsClientSubnet string) (srv *DoHServer, err error) {
+func NewDoHServer(cli Client, URL, CertFile, KeyFile, EdnsClientSubnet string) (srv *DoHServer, err error) {
+	var u *url.URL
+	u, err = url.Parse(URL)
+	if err != nil {
+		logger.Error(err.Error())
+		return
+	}
+
 	srv = &DoHServer{
-		Scheme:   Scheme,
-		Addr:     Addr,
-		CertFile: CertFile,
-		KeyFile:  KeyFile,
+		scheme:   u.Scheme,
+		addr:     u.Host,
+		certFile: CertFile,
+		keyFile:  KeyFile,
 		cli:      cli,
 		mux:      http.NewServeMux(),
 	}
@@ -245,15 +253,15 @@ func NewDoHServer(cli Client, Scheme, Addr, CertFile, KeyFile, EdnsClientSubnet 
 
 func (srv *DoHServer) Run() (err error) {
 	server := &http.Server{
-		Addr:    srv.Addr,
+		Addr:    srv.addr,
 		Handler: srv.mux,
 	}
 
-	switch srv.Scheme {
+	switch srv.scheme {
 	case "http":
 		err = server.ListenAndServe()
 	case "https", "":
-		err = server.ListenAndServeTLS(srv.CertFile, srv.KeyFile)
+		err = server.ListenAndServeTLS(srv.certFile, srv.keyFile)
 	}
 	return
 }

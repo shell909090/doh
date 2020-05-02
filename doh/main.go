@@ -2,154 +2,124 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
 	"net"
 	"net/http"
-	"net/url"
-	"os"
 	"time"
 
 	"github.com/miekg/dns"
-	logging "github.com/op/go-logging"
 )
 
-type Client interface {
-	Url() (u string)
-	Exchange(ctx context.Context, quiz *dns.Msg) (ans *dns.Msg, err error)
+const (
+	DefaultConfigs = "doh.json;~/.doh.json;/etc/doh.json"
+)
+
+var (
+	ErrConfigParse = errors.New("config parse error")
+	Short          bool
+	Subnet         string
+	Driver         string
+	URL            string
+	Insecure       bool
+	Aliases        *map[string]string
+)
+
+type ClientConfig struct {
+	Driver   string          `json:"driver"`
+	URL      string          `json:"url"`
+	Insecure bool            `json:"insecure"`
+	Subs     []*ClientConfig `json:"subs"`
 }
 
-type Server interface {
-	Run() (err error)
+func (cfg *ClientConfig) CreateClient() (cli Client, err error) {
+	if URL, ok := (*Aliases)[cfg.URL]; ok {
+		cfg.URL = URL
+	}
+
+	if cfg.Driver == "" {
+		cfg.Driver, err = GuessDriver(cfg.URL)
+		if err != nil {
+			logger.Error(err.Error())
+			return
+		}
+	}
+
+	switch cfg.Driver {
+	case "dns":
+		cli, err = NewDnsClient(cfg.URL)
+	case "google":
+		cli = NewGoogleClient(cfg.URL, cfg.Insecure)
+	case "rfc8484":
+		cli = NewRfc8484Client(cfg.URL, cfg.Insecure)
+	default:
+		err = ErrConfigParse
+	}
+	return
 }
 
 type Config struct {
 	Logfile          string
 	Loglevel         string
-	InputProtocol    string `json:"input-protocol"`
-	InputURL         string `json:"input-url"`
-	InputCertFile    string `json:"input-cert-file"`
-	InputKeyFile     string `json:"input-key-file"`
+	ServiceDriver    string `json:"service-driver"`
+	ServiceURL       string `json:"service-url"`
+	CertFile         string `json:"cert-file"`
+	KeyFile          string `json:"key-file"`
 	EdnsClientSubnet string `json:"edns-client-subnet"`
-	OutputProtocol   string `json:"output-protocol"`
-	OutputURL        string `json:"output-url"`
-	OutputInsecure   bool   `json:"output-insecure"`
+	Client           *ClientConfig
+	Aliases          map[string]string
+
+	// OutputProtocol string `json:"output-protocol"`
+	// OutputURL      string `json:"output-url"`
+	// OutputInsecure bool   `json:"output-insecure"`
 }
 
-var (
-	ErrConfigParse = errors.New("config parse error")
-	logger         = logging.MustGetLogger("")
-	Short          bool
-	Subnet         string
-)
-
-func LoadJson(configfile string, cfg interface{}) (err error) {
-	file, err := os.Open(configfile)
-	if err != nil {
-		return
-	}
-	defer file.Close()
-
-	dec := json.NewDecoder(file)
-	err = dec.Decode(&cfg)
-	return
-}
-
-func SetLogging(logfile, loglevel string) (err error) {
-	var file *os.File
-	file = os.Stdout
-
-	if loglevel == "" {
-		loglevel = "WARNING"
-	}
-	if logfile != "" {
-		file, err = os.OpenFile(logfile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0600)
-		if err != nil {
-			panic(err.Error())
+func (cfg *Config) CreateOutput() (cli Client, err error) {
+	if URL != "" {
+		if cfg.Client == nil {
+			cfg.Client = &ClientConfig{}
 		}
-	}
-	logging.SetBackend(logging.NewLogBackend(file, "", 0))
-	logging.SetFormatter(logging.MustStringFormatter(
-		"%{time:01-02 15:04:05.000}[%{level}] %{shortpkg}/%{shortfile}: %{message}"))
-	lv, err := logging.LogLevel(loglevel)
-	if err != nil {
-		panic(err.Error())
-	}
-	logging.SetLevel(lv, "")
-	return
-}
-
-func CreateOutput(cfg *Config) (client Client, err error) {
-	var u *url.URL
-	u, err = url.Parse(cfg.OutputURL)
-	if err != nil {
-		logger.Error(err.Error())
-		return
+		cfg.Client.URL = URL
 	}
 
-	if cfg.OutputProtocol == "" {
-		switch u.Scheme {
-		case "udp", "tcp", "tcp-tls":
-			cfg.OutputProtocol = "dns"
-
-		case "http", "https":
-			switch u.Path {
-			case "/resolve":
-				cfg.OutputProtocol = "google"
-			case "/dns-query":
-				cfg.OutputProtocol = "rfc8484"
-			default:
-				err = ErrConfigParse
-				return
-			}
-
-		default:
-			err = ErrConfigParse
-			return
-		}
-	}
-
-	switch cfg.OutputProtocol {
-	case "dns":
-		client = NewDnsClient(cfg.OutputURL, u)
-	case "google":
-		client = NewGoogleClient(cfg.OutputURL, cfg.OutputInsecure)
-	case "rfc8484":
-		client = NewRfc8484Client(cfg.OutputURL, cfg.OutputInsecure)
-	default:
+	if cfg.Client == nil {
 		err = ErrConfigParse
+		logger.Error(err.Error())
 		return
 	}
-	return
-}
 
-func CreateInput(cfg *Config, cli Client) (srv Server, err error) {
-	var u *url.URL
-	u, err = url.Parse(cfg.InputURL)
+	if Driver != "" {
+		cfg.Client.Driver = Driver
+	}
+
+	if Insecure {
+		cfg.Client.Insecure = Insecure
+	}
+
+	cli, err = cfg.Client.CreateClient()
 	if err != nil {
 		logger.Error(err.Error())
 		return
 	}
 
-	if cfg.InputProtocol == "" {
-		switch u.Scheme {
-		case "udp", "tcp", "tcp-tls":
-			cfg.InputProtocol = "dns"
-		case "http", "https":
-			cfg.InputProtocol = "doh"
-		default:
-			err = ErrConfigParse
+	return
+}
+
+func (cfg *Config) CreateInput(cli Client) (srv Server, err error) {
+	if cfg.ServiceDriver == "" {
+		cfg.ServiceDriver, err = GuessDriver(cfg.ServiceURL)
+		if err != nil {
+			logger.Error(err.Error())
 			return
 		}
 	}
 
-	switch cfg.InputProtocol {
+	switch cfg.ServiceDriver {
 	case "dns":
-		srv, err = NewDnsServer(cli, u.Scheme, u.Host, cfg.EdnsClientSubnet)
-	case "doh":
-		srv, err = NewDoHServer(cli, u.Scheme, u.Host, cfg.InputCertFile, cfg.InputKeyFile, cfg.EdnsClientSubnet)
+		srv, err = NewDnsServer(cli, cfg.ServiceURL, cfg.EdnsClientSubnet)
+	case "doh", "http", "https":
+		srv, err = NewDoHServer(cli, cfg.ServiceURL, cfg.CertFile, cfg.KeyFile, cfg.EdnsClientSubnet)
 	default:
 		err = ErrConfigParse
 		return
@@ -209,15 +179,13 @@ func QueryDN(cli Client, dn string, qtype uint16) (err error) {
 }
 
 func main() {
+	var err error
 	var ConfigFile string
 	var Loglevel string
 	var Profile string
 	var Query bool
 	var IPv4 bool
 	var IPv6 bool
-	var Protocol string
-	var URL string
-	var Insecure bool
 	flag.StringVar(&ConfigFile, "config", "", "config file")
 	flag.StringVar(&Loglevel, "loglevel", "", "log level")
 	flag.StringVar(&Profile, "profile", "", "run profile")
@@ -226,14 +194,25 @@ func main() {
 	flag.StringVar(&Subnet, "subnet", "", "query subnet")
 	flag.BoolVar(&IPv4, "4", false, "query ipv4 only")
 	flag.BoolVar(&IPv6, "6", false, "query ipv6 only")
-	flag.StringVar(&Protocol, "protocol", "", "output protocol")
+	flag.StringVar(&Driver, "driver", "", "output driver")
 	flag.StringVar(&URL, "url", "", "output url")
 	flag.BoolVar(&Insecure, "insecure", false, "output insecure")
 	flag.Parse()
 
 	cfg := &Config{}
+
+	err = LoadJson(DefaultConfigs, cfg)
+	if err != nil {
+		fmt.Println(err.Error())
+		return
+	}
+
 	if ConfigFile != "" {
-		LoadJson(ConfigFile, cfg)
+		err = LoadJson(ConfigFile, cfg)
+		if err != nil {
+			fmt.Println(err.Error())
+			return
+		}
 	}
 
 	if Loglevel != "" {
@@ -241,18 +220,9 @@ func main() {
 	}
 	SetLogging(cfg.Logfile, cfg.Loglevel)
 
-	if Protocol != "" {
-		cfg.OutputProtocol = Protocol
-	}
-	if URL != "" {
-		cfg.OutputURL = URL
-	}
-	if Insecure {
-		cfg.OutputInsecure = Insecure
-	}
+	Aliases = &cfg.Aliases
 
-	logger.Debugf("config: %+v", cfg)
-	cli, err := CreateOutput(cfg)
+	cli, err := cfg.CreateOutput()
 	if err != nil {
 		logger.Error(err.Error())
 		return
@@ -275,7 +245,7 @@ func main() {
 			}
 		}
 
-	case cfg.InputURL != "":
+	case cfg.ServiceURL != "":
 		if Profile != "" {
 			go func() {
 				logger.Infof("golang profile %s", Profile)
@@ -285,7 +255,7 @@ func main() {
 		}
 
 		var srv Server
-		srv, err = CreateInput(cfg, cli)
+		srv, err = cfg.CreateInput(cli)
 		if err != nil {
 			logger.Error(err.Error())
 			return
@@ -301,5 +271,6 @@ func main() {
 		logger.Error("no query nor server, quit.")
 		return
 	}
+
 	return
 }

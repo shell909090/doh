@@ -1,5 +1,6 @@
 {
-    "loglevel": "INFO",
-    "input-url": "http://0.0.0.0:8053",
-    "output-url": "udp://114.114.114.114:53/"
+    "service-url": "http://0.0.0.0:8053",
+    "client": {
+	"url": "udp://114.114.114.114:53/"
+    }
 }

@@ -19,7 +19,14 @@ type DnsClient struct {
 	cli  *dns.Client
 }
 
-func NewDnsClient(URL string, u *url.URL) (cli *DnsClient) {
+func NewDnsClient(URL string) (cli *DnsClient, err error) {
+	var u *url.URL
+	u, err = url.Parse(URL)
+	if err != nil {
+		logger.Error(err.Error())
+		return
+	}
+
 	cli = &DnsClient{
 		host: u.Host,
 		URL:  URL,
@@ -40,21 +47,27 @@ func (cli *DnsClient) Exchange(ctx context.Context, quiz *dns.Msg) (ans *dns.Msg
 }
 
 type DnsServer struct {
-	Net              string
-	Addr             string
-	EdnsClientSubnet string
-	clientAddr       net.IP
-	clientMask       uint8
-	cli              Client
+	net        string
+	addr       string
+	clientAddr net.IP
+	clientMask uint8
+	cli        Client
 }
 
-func NewDnsServer(cli Client, Net, Addr, EdnsClientSubnet string) (srv *DnsServer, err error) {
-	srv = &DnsServer{
-		Net:              Net,
-		Addr:             Addr,
-		EdnsClientSubnet: EdnsClientSubnet,
-		cli:              cli,
+func NewDnsServer(cli Client, URL, EdnsClientSubnet string) (srv *DnsServer, err error) {
+	var u *url.URL
+	u, err = url.Parse(URL)
+	if err != nil {
+		logger.Error(err.Error())
+		return
 	}
+
+	srv = &DnsServer{
+		net:  u.Scheme,
+		addr: u.Host,
+		cli:  cli,
+	}
+
 	if EdnsClientSubnet != "" {
 		srv.clientAddr, srv.clientMask, err = ParseSubnet(EdnsClientSubnet)
 		if err != nil {
@@ -67,7 +80,8 @@ func NewDnsServer(cli Client, Net, Addr, EdnsClientSubnet string) (srv *DnsServe
 
 func (srv *DnsServer) ServeDNS(w dns.ResponseWriter, quiz *dns.Msg) {
 	logger.Infof("dns server query: %s", quiz.Question[0].Name)
-	if srv.EdnsClientSubnet != "" {
+
+	if srv.clientAddr != nil {
 		appendEdns0Subnet(quiz, srv.clientAddr, srv.clientMask)
 	}
 
@@ -93,78 +107,11 @@ func (srv *DnsServer) ServeDNS(w dns.ResponseWriter, quiz *dns.Msg) {
 
 func (srv *DnsServer) Run() (err error) {
 	server := &dns.Server{
-		Net:     srv.Net,
-		Addr:    srv.Addr,
+		Net:     srv.net,
+		Addr:    srv.addr,
 		Handler: srv,
 	}
-	logger.Infof("dns server start. listen in %s://%s", srv.Net, srv.Addr)
+	logger.Infof("dns server start. listen in %s://%s", srv.net, srv.addr)
 	err = server.ListenAndServe()
-	return
-}
-
-func ParseSubnet(subnet string) (ip net.IP, mask uint8, err error) {
-	ip, ipnet, err := net.ParseCIDR(subnet)
-	if err != nil {
-		err = nil
-		ip = net.ParseIP(subnet)
-		switch {
-		case ip == nil:
-			err = ErrParseSubnet
-			return
-		case ip.To4() == nil:
-			mask = net.IPv6len * 8
-		default:
-			mask = net.IPv4len * 8
-		}
-		return
-	}
-	one, _ := ipnet.Mask.Size()
-	mask = uint8(one)
-	return
-}
-
-func appendEdns0Subnet(m *dns.Msg, addr net.IP, mask uint8) {
-	opt := m.IsEdns0()
-	if opt == nil {
-		opt = &dns.OPT{}
-		opt.Hdr.Name = "."
-		opt.Hdr.Rrtype = dns.TypeOPT
-		m.Extra = append(m.Extra, opt)
-	}
-
-	e := &dns.EDNS0_SUBNET{
-		Code:          dns.EDNS0SUBNET,
-		SourceNetmask: mask,
-		SourceScope:   0,
-		Address:       addr,
-	}
-	if addr.To4() == nil {
-		e.Family = 2 // IP6
-	} else {
-		e.Family = 1 // IP4
-	}
-
-	opt.Option = append(opt.Option, e)
-}
-
-type DnsClientSubnetWrapper struct {
-	ClientSubnet string
-	addr         net.IP
-	cli          Client
-}
-
-func NewDnsClientSubnetWrapper(cli Client, clientSubnet string) (wrapper *DnsClientSubnetWrapper) {
-	wrapper = &DnsClientSubnetWrapper{
-		ClientSubnet: clientSubnet,
-		addr:         net.ParseIP(clientSubnet),
-		cli:          cli,
-	}
-	return
-
-}
-
-func (wrapper *DnsClientSubnetWrapper) Exchange(ctx context.Context, quiz *dns.Msg) (ans *dns.Msg, err error) {
-	appendEdns0Subnet(quiz, wrapper.addr, 32) // TODO:
-	ans, err = wrapper.cli.Exchange(ctx, quiz)
 	return
 }
