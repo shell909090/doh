@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"io"
 	"io/ioutil"
@@ -36,17 +37,26 @@ type Rfc8484Client struct {
 	transport *http.Transport
 }
 
-func NewRfc8484Client(URL string, Insecure bool) (cli *Rfc8484Client) {
-	cli = &Rfc8484Client{
-		URL:      URL,
-		Insecure: Insecure,
-		transport: &http.Transport{
-			Proxy: http.ProxyFromEnvironment,
-		},
+func NewRfc8484Client(URL string, body json.RawMessage) (cli *Rfc8484Client, err error) {
+	cli = &Rfc8484Client{}
+	err = json.Unmarshal(body, &cli)
+	if err != nil {
+		logger.Error(err.Error())
+		return
 	}
+
+	cli.URL = URL
 	if Insecure {
+		cli.Insecure = Insecure
+	}
+
+	cli.transport = &http.Transport{
+		Proxy: http.ProxyFromEnvironment,
+	}
+	if cli.Insecure {
 		cli.transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 	}
+
 	return
 }
 

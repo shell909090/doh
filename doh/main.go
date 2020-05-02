@@ -2,11 +2,13 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
 	"net"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/miekg/dns"
@@ -26,36 +28,35 @@ var (
 	Aliases        *map[string]string
 )
 
-type ClientConfig struct {
-	Driver   string          `json:"driver"`
-	URL      string          `json:"url"`
-	Insecure bool            `json:"insecure"`
-	Subs     []*ClientConfig `json:"subs"`
+type ClientHeader struct {
+	Driver string
+	URL    string
 }
 
-func (cfg *ClientConfig) CreateClient() (cli Client, err error) {
-	if URL, ok := (*Aliases)[cfg.URL]; ok {
-		cfg.URL = URL
+func (header *ClientHeader) CreateClient(body json.RawMessage) (cli Client, err error) {
+	if URL, ok := (*Aliases)[header.URL]; ok {
+		header.URL = URL
 	}
 
-	if cfg.Driver == "" {
-		cfg.Driver, err = GuessDriver(cfg.URL)
+	if header.Driver == "" {
+		header.Driver, err = GuessDriver(header.URL)
 		if err != nil {
 			logger.Error(err.Error())
 			return
 		}
 	}
 
-	switch cfg.Driver {
+	switch header.Driver {
 	case "dns":
-		cli, err = NewDnsClient(cfg.URL)
+		cli, err = NewDnsClient(header.URL)
 	case "google":
-		cli = NewGoogleClient(cfg.URL, cfg.Insecure)
+		cli, err = NewGoogleClient(header.URL, body)
 	case "rfc8484":
-		cli = NewRfc8484Client(cfg.URL, cfg.Insecure)
+		cli, err = NewRfc8484Client(header.URL, body)
 	default:
 		err = ErrConfigParse
 	}
+
 	return
 }
 
@@ -67,37 +68,27 @@ type Config struct {
 	CertFile         string `json:"cert-file"`
 	KeyFile          string `json:"key-file"`
 	EdnsClientSubnet string `json:"edns-client-subnet"`
-	Client           *ClientConfig
+	Client           json.RawMessage
 	Aliases          map[string]string
-
-	// OutputProtocol string `json:"output-protocol"`
-	// OutputURL      string `json:"output-url"`
-	// OutputInsecure bool   `json:"output-insecure"`
 }
 
 func (cfg *Config) CreateOutput() (cli Client, err error) {
-	if URL != "" {
-		if cfg.Client == nil {
-			cfg.Client = &ClientConfig{}
-		}
-		cfg.Client.URL = URL
-	}
-
-	if cfg.Client == nil {
-		err = ErrConfigParse
+	var header ClientHeader
+	err = json.Unmarshal(cfg.Client, &header)
+	if err != nil {
 		logger.Error(err.Error())
 		return
 	}
 
+	if URL != "" {
+		header.URL = URL
+	}
+
 	if Driver != "" {
-		cfg.Client.Driver = Driver
+		header.Driver = Driver
 	}
 
-	if Insecure {
-		cfg.Client.Insecure = Insecure
-	}
-
-	cli, err = cfg.Client.CreateClient()
+	cli, err = header.CreateClient(cfg.Client)
 	if err != nil {
 		logger.Error(err.Error())
 		return
@@ -184,23 +175,20 @@ func main() {
 	var Loglevel string
 	var Profile string
 	var Query bool
-	var IPv4 bool
-	var IPv6 bool
+	var IP string
 	flag.StringVar(&ConfigFile, "config", "", "config file")
 	flag.StringVar(&Loglevel, "loglevel", "", "log level")
 	flag.StringVar(&Profile, "profile", "", "run profile")
 	flag.BoolVar(&Query, "q", false, "query")
 	flag.BoolVar(&Short, "short", false, "show short answer")
 	flag.StringVar(&Subnet, "subnet", "", "query subnet")
-	flag.BoolVar(&IPv4, "4", false, "query ipv4 only")
-	flag.BoolVar(&IPv6, "6", false, "query ipv6 only")
+	flag.StringVar(&IP, "ip", "4", "ip version to query")
 	flag.StringVar(&Driver, "driver", "", "output driver")
 	flag.StringVar(&URL, "url", "", "output url")
 	flag.BoolVar(&Insecure, "insecure", false, "output insecure")
 	flag.Parse()
 
 	cfg := &Config{}
-
 	err = LoadJson(DefaultConfigs, cfg)
 	if err != nil {
 		fmt.Println(err.Error())
@@ -228,20 +216,16 @@ func main() {
 		return
 	}
 
+	logger.Debugf("%+v", cli)
+
 	switch {
 	case Query:
 		for _, dn := range flag.Args() {
-			switch {
-			case !IPv4 && !IPv6:
+			if strings.Contains(IP, "4") {
 				QueryDN(cli, dn, dns.TypeA)
+			}
+			if strings.Contains(IP, "6") {
 				QueryDN(cli, dn, dns.TypeAAAA)
-			case IPv4 && !IPv6:
-				QueryDN(cli, dn, dns.TypeA)
-			case !IPv4 && IPv6:
-				QueryDN(cli, dn, dns.TypeAAAA)
-			default:
-				logger.Error("don't use -4 and -6 at the same time")
-				return
 			}
 		}
 

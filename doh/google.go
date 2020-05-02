@@ -28,17 +28,26 @@ type GoogleClient struct {
 	transport *http.Transport
 }
 
-func NewGoogleClient(URL string, Insecure bool) (cli *GoogleClient) {
-	cli = &GoogleClient{
-		URL:      URL,
-		Insecure: Insecure,
-		transport: &http.Transport{
-			Proxy: http.ProxyFromEnvironment,
-		},
+func NewGoogleClient(URL string, body json.RawMessage) (cli *GoogleClient, err error) {
+	cli = &GoogleClient{}
+	err = json.Unmarshal(body, &cli)
+	if err != nil {
+		logger.Error(err.Error())
+		return
+	}
+
+	cli.URL = URL
+	if Insecure {
+		cli.Insecure = Insecure
+	}
+
+	cli.transport = &http.Transport{
+		Proxy: http.ProxyFromEnvironment,
 	}
 	if cli.Insecure {
 		cli.transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 	}
+
 	return
 }
 
