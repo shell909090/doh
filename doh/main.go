@@ -74,10 +74,12 @@ type Config struct {
 
 func (cfg *Config) CreateOutput() (cli Client, err error) {
 	var header ClientHeader
-	err = json.Unmarshal(cfg.Client, &header)
-	if err != nil {
-		logger.Error(err.Error())
-		return
+	if cfg.Client != nil {
+		err = json.Unmarshal(cfg.Client, &header)
+		if err != nil {
+			logger.Error(err.Error())
+			return
+		}
 	}
 
 	if URL != "" {
@@ -181,11 +183,11 @@ func main() {
 	flag.StringVar(&Profile, "profile", "", "run profile")
 	flag.BoolVar(&Query, "q", false, "query")
 	flag.BoolVar(&Short, "short", false, "show short answer")
-	flag.StringVar(&Subnet, "subnet", "", "query subnet")
+	flag.StringVar(&Subnet, "subnet", "", "edns client subnet")
 	flag.StringVar(&IP, "ip", "4", "ip version to query")
-	flag.StringVar(&Driver, "driver", "", "output driver")
-	flag.StringVar(&URL, "url", "", "output url")
-	flag.BoolVar(&Insecure, "insecure", false, "output insecure")
+	flag.StringVar(&Driver, "driver", "", "client driver")
+	flag.StringVar(&URL, "url", "", "client url")
+	flag.BoolVar(&Insecure, "insecure", false, "don't check cert in https")
 	flag.Parse()
 
 	cfg := &Config{}

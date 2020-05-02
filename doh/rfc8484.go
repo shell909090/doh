@@ -39,10 +39,12 @@ type Rfc8484Client struct {
 
 func NewRfc8484Client(URL string, body json.RawMessage) (cli *Rfc8484Client, err error) {
 	cli = &Rfc8484Client{}
-	err = json.Unmarshal(body, &cli)
-	if err != nil {
-		logger.Error(err.Error())
-		return
+	if body != nil {
+		err = json.Unmarshal(body, &cli)
+		if err != nil {
+			logger.Error(err.Error())
+			return
+		}
 	}
 
 	cli.URL = URL

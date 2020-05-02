@@ -4,6 +4,7 @@
 * [Compile and Install](#compile-and-install)
 * [Command line options and args](#command-line-options-and-args)
 * [Config](#config)
+  * [Client Config](#client-config)
 * [Drivers and Protocols](#drivers-and-protocols)
   * [dns](#dns)
   * [doh](#doh)
@@ -37,14 +38,19 @@ See `doh --help`.
 
 * logfile: optional. indicate which file log should be written to. empty means stdout. empty by default.
 * loglevel: optional. log level. warning by default.
-* input-driver: optional. see "drivers and protocols". if empty, program will auto guess.
-* input-url: required. see "drivers and protocols".
-* input-cert-file: optional. cert file when use doh.
-* input-key-file: optional. key file when use doh.
+* service-driver: optional. see "drivers and protocols". if empty, program will auto guess.
+* service-url: required. see "drivers and protocols".
+* cert-file: optional. cert file when use doh.
+* key-file: optional. key file when use doh.
 * edns-client-subnet: optional. it could be empty, means don't do anything. or "client", means read remote address and put it into edns-client-subnet. or an ip address/cidr subnet, means put this address into edns-client-subnet. empty by default.
-* output-protocol: optional. see "drivers and protocols". if empty, program will auto guess.
-* output-url: required. see "drivers and protocols".
-* output-insecure: optional. don't verify the certificate from the server.
+* client: client settings.
+* aliases: a dict. if url matches the key, it will be replaced by value.
+
+## Client Config
+
+* driver: optional. determine which system will be used as a client. see "drivers and protocols". if empty, the program will auto guess.
+* url: required. see "drivers and protocols".
+* insecure: optional. don't verify the certificate from the server.
 
 # Drivers and Protocols
 
@@ -66,8 +72,6 @@ Here are some examples as input.
 
 	doh --config udp-rfc8484.json
 	dig www.baidu.com @127.0.0.1 -p 5053
-	doh --config udp-google.json
-	dig www.baidu.com @127.0.0.1 -p 5153
 
 ## doh
 
@@ -76,7 +80,7 @@ DoH means DNS over HTTPS. It include two drivers:
 * rfc8484
 * google
 
-As an output driver, you should indicate rfc8484 or google, to specify which exactly driver we actually use.
+As an output driver, you should indicate which driver exactly. We will guess if you don't say it explicitly.
 
 Here are some examples as output.
 

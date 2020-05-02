@@ -30,10 +30,12 @@ type GoogleClient struct {
 
 func NewGoogleClient(URL string, body json.RawMessage) (cli *GoogleClient, err error) {
 	cli = &GoogleClient{}
-	err = json.Unmarshal(body, &cli)
-	if err != nil {
-		logger.Error(err.Error())
-		return
+	if body != nil {
+		err = json.Unmarshal(body, &cli)
+		if err != nil {
+			logger.Error(err.Error())
+			return
+		}
 	}
 
 	cli.URL = URL

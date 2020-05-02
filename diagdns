@@ -17,12 +17,13 @@ do
    show_ping "$DN" "direct " $(dig +short "$DN" | tail -n 1) &
    show_ping "$DN" "114    " $(dig +short "$DN" @114.114.114.114 | tail -n 1) &
    show_ping "$DN" "8888   " $(dig +short "$DN" @8.8.8.8 | tail -n 1) &
-   show_ping "$DN" "gtls   " $(doh -q -4 --short --url "tcp-tls://dns.google.com:853" "$DN" | tail -n 1) &
-   show_ping "$DN" "google " $(doh -q -4 --short --url "https://dns.google.com/resolve" "$DN" | tail -n 1) &
+   show_ping "$DN" "gtls   " $(bin/doh -q --short --url "gtls" "$DN" | tail -n 1) &
+   show_ping "$DN" "google " $(bin/doh -q --short --url "google" "$DN" | tail -n 1) &
    show_ping "$DN" "opendns" $(dig +short "$DN" @208.67.222.222 | tail -n 1) &
-   show_ping "$DN" "one    " $(doh -q -4 --short --url "tcp-tls://one.one.one.one:853" "$DN" | tail -n 1) &
-   show_ping "$DN" "cf     " $(doh -q -4 --short --url "https://security.cloudflare-dns.com/dns-query" "$DN" | tail -n 1) &
-   show_ping "$DN" "quad9  " $(doh -q -4 --short --url "tcp-tls://dns.quad9.net:853" "$DN" | tail -n 1) &
-   show_ping "$DN" "nextdns" $(doh -q -4 --short --url "udp://45.90.28.253:53" "$DN" | tail -n 1) &
+   show_ping "$DN" "one    " $(bin/doh -q --short --url "one" "$DN" | tail -n 1) &
+   show_ping "$DN" "cf     " $(bin/doh -q --short --url "cf" "$DN" | tail -n 1) &
+   show_ping "$DN" "quad9  " $(bin/doh -q --short --url "9tls" "$DN" | tail -n 1) &
+   show_ping "$DN" "auguard" $(bin/doh -q --short --url "augtls" "$DN" | tail -n 1) &
+   show_ping "$DN" "nextdns" $(bin/doh -q --short --url "nexttls" "$DN" | tail -n 1) &
    wait
 done

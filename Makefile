@@ -37,11 +37,11 @@ test-query: bin/doh
 	bin/doh -q --url https://dns.google.com/resolve www.baidu.com
 
 test-short: bin/doh
-	bin/doh -q --short --url udp://114.114.114.114:53 www.baidu.com
-	bin/doh -q --short --url tcp://114.114.114.114:53 www.baidu.com
-	bin/doh -q --short --url tcp-tls://one.one.one.one:853 www.baidu.com
-	bin/doh -q --short --url https://security.cloudflare-dns.com/dns-query www.baidu.com
-	bin/doh -q --short --url https://dns.google.com/resolve www.baidu.com
+	bin/doh -q --short --url 114 www.baidu.com
+	bin/doh -q --short --url 114t www.baidu.com
+	bin/doh -q --short --url one www.baidu.com
+	bin/doh -q --short --url cf www.baidu.com
+	bin/doh -q --short --url google www.baidu.com
 
 test-edns: bin/doh
 	bin/doh -q --short --url udp://114.114.114.114:53 www.google.com
@@ -71,7 +71,7 @@ test-google: bin/doh
 	killall doh
 
 test-http: bin/doh
-	bin/doh --loglevel DEBUG --config doh.json &
+	bin/doh --config http.json &
 	sleep 1
 	bin/doh -q --short --url http://localhost:8053/dns-query www.baidu.com
 	bin/doh -q --short --url http://localhost:8053/resolve www.baidu.com
@@ -79,7 +79,7 @@ test-http: bin/doh
 	killall doh
 
 test-https: bin/doh
-	bin/doh --config dohs.json &
+	bin/doh --config https.json &
 	sleep 1
 	bin/doh -q --short --url https://localhost:8153/dns-query --insecure www.baidu.com
 	bin/doh -q --short --url https://localhost:8153/resolve --insecure www.baidu.com
