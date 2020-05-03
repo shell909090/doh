@@ -66,6 +66,8 @@ func NewDnsServer(cli Client, URL string, body json.RawMessage) (srv *DnsServer,
 		return
 	}
 
+	GuessPort(u)
+
 	srv = &DnsServer{
 		net:  u.Scheme,
 		addr: u.Host,
