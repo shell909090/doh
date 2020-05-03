@@ -92,11 +92,6 @@ type Config struct {
 	Service  json.RawMessage
 	Client   json.RawMessage
 	Aliases  map[string]string
-	// ServiceDriver    string `json:"service-driver"`
-	// ServiceURL       string `json:"service-url"`
-	// CertFile         string `json:"cert-file"`
-	// KeyFile          string `json:"key-file"`
-	// EdnsClientSubnet string `json:"edns-client-subnet"`
 }
 
 func (cfg *Config) CreateClient() (cli Client, err error) {

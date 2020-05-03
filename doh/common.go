@@ -105,6 +105,21 @@ func GuessDriver(URL string) (driver string, err error) {
 	return
 }
 
+func GuessPort(u *url.URL) {
+	if strings.Contains(u.Host, ":") {
+		return
+	}
+
+	switch u.Scheme {
+	case "udp", "tcp":
+		u.Host = net.JoinHostPort(u.Host, "53")
+	case "tcp-tls":
+		u.Host = net.JoinHostPort(u.Host, "853")
+	default:
+	}
+	return
+}
+
 func appendEdns0Subnet(m *dns.Msg, addr net.IP, mask uint8) {
 	opt := m.IsEdns0()
 	if opt == nil {

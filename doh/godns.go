@@ -28,6 +28,8 @@ func NewDnsClient(URL string) (cli *DnsClient, err error) {
 		return
 	}
 
+	GuessPort(u)
+
 	cli = &DnsClient{
 		host: u.Host,
 		URL:  URL,
