@@ -606,11 +606,25 @@ func FromRR(rr dns.RR) (jr *DNSRR) {
 	case *dns.RRSIG:
 		jr.Data = fmt.Sprintf("%d %d %d %d %d %d %s %s", v.Algorithm, v.Labels, v.OrigTtl, v.Expiration, v.Inception, v.KeyTag, v.SignerName, v.Signature)
 	case *dns.NSEC:
-		// TODO
+		var datas []string = make([]string, 1)
+		datas[0] = fmt.Sprintf("%s", v.NextDomain)
+		for _, b := range v.TypeBitMap {
+			if s, ok := dns.TypeToString[b]; ok {
+				datas = append(datas, s)
+			}
+		}
+		jr.Data = strings.Join(datas, " ")
 	case *dns.DNSKEY:
 		jr.Data = fmt.Sprintf("%d %d %d %s", v.Flags, v.Protocol, v.Algorithm, v.PublicKey)
 	case *dns.NSEC3:
-		// TODO
+		var datas []string = make([]string, 1)
+		datas[0] = fmt.Sprintf("%d %d %d %d %s %d %s", v.Hash, v.Flags, v.Iterations, v.SaltLength, v.SaltLength, v.HashLength, v.NextDomain)
+		for _, b := range v.TypeBitMap {
+			if s, ok := dns.TypeToString[b]; ok {
+				datas = append(datas, s)
+			}
+		}
+		jr.Data = strings.Join(datas, " ")
 	case *dns.NSEC3PARAM:
 		jr.Data = fmt.Sprintf("%d %d %d %d %s", v.Hash, v.Flags, v.Iterations, v.SaltLength, v.Salt)
 	}
