@@ -28,12 +28,12 @@ var (
 	Aliases        *map[string]string
 )
 
-type ClientHeader struct {
+type DriverHeader struct {
 	Driver string
 	URL    string
 }
 
-func (header *ClientHeader) CreateClient(body json.RawMessage) (cli Client, err error) {
+func (header *DriverHeader) CreateClient(body json.RawMessage) (cli Client, err error) {
 	if URL, ok := (*Aliases)[header.URL]; ok {
 		header.URL = URL
 	}
@@ -60,20 +60,47 @@ func (header *ClientHeader) CreateClient(body json.RawMessage) (cli Client, err 
 	return
 }
 
-type Config struct {
-	Logfile          string
-	Loglevel         string
-	ServiceDriver    string `json:"service-driver"`
-	ServiceURL       string `json:"service-url"`
-	CertFile         string `json:"cert-file"`
-	KeyFile          string `json:"key-file"`
-	EdnsClientSubnet string `json:"edns-client-subnet"`
-	Client           json.RawMessage
-	Aliases          map[string]string
+func (header *DriverHeader) CreateService(cli Client, body json.RawMessage) (srv Server, err error) {
+	if header.Driver == "" {
+		header.Driver, err = GuessDriver(header.URL)
+		if err != nil {
+			logger.Error(err.Error())
+			return
+		}
+	}
+
+	switch header.Driver {
+	case "dns":
+		srv, err = NewDnsServer(cli, header.URL, body)
+	case "doh", "http", "https":
+		srv, err = NewDoHServer(cli, header.URL, body)
+	default:
+		err = ErrConfigParse
+		return
+	}
+
+	if err != nil {
+		logger.Error(err.Error())
+		return
+	}
+	return
 }
 
-func (cfg *Config) CreateOutput() (cli Client, err error) {
-	var header ClientHeader
+type Config struct {
+	Logfile  string
+	Loglevel string
+	Service  json.RawMessage
+	Client   json.RawMessage
+	Aliases  map[string]string
+	// ServiceDriver    string `json:"service-driver"`
+	// ServiceURL       string `json:"service-url"`
+	// CertFile         string `json:"cert-file"`
+	// KeyFile          string `json:"key-file"`
+	// EdnsClientSubnet string `json:"edns-client-subnet"`
+}
+
+func (cfg *Config) CreateClient() (cli Client, err error) {
+	var header DriverHeader
 	if cfg.Client != nil {
 		err = json.Unmarshal(cfg.Client, &header)
 		if err != nil {
@@ -99,29 +126,22 @@ func (cfg *Config) CreateOutput() (cli Client, err error) {
 	return
 }
 
-func (cfg *Config) CreateInput(cli Client) (srv Server, err error) {
-	if cfg.ServiceDriver == "" {
-		cfg.ServiceDriver, err = GuessDriver(cfg.ServiceURL)
+func (cfg *Config) CreateService(cli Client) (srv Server, err error) {
+	var header DriverHeader
+	if cfg.Service != nil {
+		err = json.Unmarshal(cfg.Service, &header)
 		if err != nil {
 			logger.Error(err.Error())
 			return
 		}
 	}
 
-	switch cfg.ServiceDriver {
-	case "dns":
-		srv, err = NewDnsServer(cli, cfg.ServiceURL, cfg.EdnsClientSubnet)
-	case "doh", "http", "https":
-		srv, err = NewDoHServer(cli, cfg.ServiceURL, cfg.CertFile, cfg.KeyFile, cfg.EdnsClientSubnet)
-	default:
-		err = ErrConfigParse
-		return
-	}
-
+	srv, err = header.CreateService(cli, cfg.Service)
 	if err != nil {
 		logger.Error(err.Error())
 		return
 	}
+
 	return
 }
 
@@ -212,7 +232,7 @@ func main() {
 
 	Aliases = &cfg.Aliases
 
-	cli, err := cfg.CreateOutput()
+	cli, err := cfg.CreateClient()
 	if err != nil {
 		logger.Error(err.Error())
 		return
@@ -231,7 +251,7 @@ func main() {
 			}
 		}
 
-	case cfg.ServiceURL != "":
+	case cfg.Service != nil:
 		if Profile != "" {
 			go func() {
 				logger.Infof("golang profile %s", Profile)
@@ -241,7 +261,7 @@ func main() {
 		}
 
 		var srv Server
-		srv, err = cfg.CreateInput(cli)
+		srv, err = cfg.CreateService(cli)
 		if err != nil {
 			logger.Error(err.Error())
 			return

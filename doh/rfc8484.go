@@ -222,15 +222,16 @@ func (handler *Rfc8484Handler) ServeHTTP(w http.ResponseWriter, req *http.Reques
 }
 
 type DoHServer struct {
-	scheme   string
-	addr     string
-	certFile string
-	keyFile  string
-	cli      Client
-	mux      *http.ServeMux
+	CertFile         string
+	KeyFile          string
+	EdnsClientSubnet string
+	scheme           string
+	addr             string
+	cli              Client
+	mux              *http.ServeMux
 }
 
-func NewDoHServer(cli Client, URL, CertFile, KeyFile, EdnsClientSubnet string) (srv *DoHServer, err error) {
+func NewDoHServer(cli Client, URL string, body json.RawMessage) (srv *DoHServer, err error) {
 	var u *url.URL
 	u, err = url.Parse(URL)
 	if err != nil {
@@ -239,22 +240,28 @@ func NewDoHServer(cli Client, URL, CertFile, KeyFile, EdnsClientSubnet string) (
 	}
 
 	srv = &DoHServer{
-		scheme:   u.Scheme,
-		addr:     u.Host,
-		certFile: CertFile,
-		keyFile:  KeyFile,
-		cli:      cli,
-		mux:      http.NewServeMux(),
+		scheme: u.Scheme,
+		addr:   u.Host,
+		cli:    cli,
+		mux:    http.NewServeMux(),
 	}
 
-	rfc8484h, err := NewRfc8484Handler(cli, EdnsClientSubnet)
+	if body != nil {
+		err = json.Unmarshal(body, &srv)
+		if err != nil {
+			logger.Error(err.Error())
+			return
+		}
+	}
+
+	rfc8484h, err := NewRfc8484Handler(cli, srv.EdnsClientSubnet)
 	if err != nil {
 		logger.Error(err.Error())
 		return
 	}
 	srv.mux.Handle("/dns-query", rfc8484h)
 
-	googleh, err := NewGoogleHandler(cli, EdnsClientSubnet)
+	googleh, err := NewGoogleHandler(cli, srv.EdnsClientSubnet)
 	if err != nil {
 		logger.Error(err.Error())
 		return
@@ -273,7 +280,7 @@ func (srv *DoHServer) Run() (err error) {
 	case "http":
 		err = server.ListenAndServe()
 	case "https", "":
-		err = server.ListenAndServeTLS(srv.certFile, srv.keyFile)
+		err = server.ListenAndServeTLS(srv.CertFile, srv.KeyFile)
 	}
 	return
 }

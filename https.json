@@ -1,7 +1,9 @@
 {
-    "service-url": "https://0.0.0.0:8153",
-    "cert-file": "cert.pem",
-    "key-file": "key.pem",
+    "service": {
+	"url": "https://0.0.0.0:8153",
+	"certfile": "cert.pem",
+	"keyfile": "key.pem"
+    },
     "client" : {
 	"url": "udp://114.114.114.114:53/"
     }

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net"
 	"net/url"
@@ -47,14 +48,15 @@ func (cli *DnsClient) Exchange(ctx context.Context, quiz *dns.Msg) (ans *dns.Msg
 }
 
 type DnsServer struct {
-	net        string
-	addr       string
-	clientAddr net.IP
-	clientMask uint8
-	cli        Client
+	EdnsClientSubnet string
+	net              string
+	addr             string
+	clientAddr       net.IP
+	clientMask       uint8
+	cli              Client
 }
 
-func NewDnsServer(cli Client, URL, EdnsClientSubnet string) (srv *DnsServer, err error) {
+func NewDnsServer(cli Client, URL string, body json.RawMessage) (srv *DnsServer, err error) {
 	var u *url.URL
 	u, err = url.Parse(URL)
 	if err != nil {
@@ -68,8 +70,16 @@ func NewDnsServer(cli Client, URL, EdnsClientSubnet string) (srv *DnsServer, err
 		cli:  cli,
 	}
 
-	if EdnsClientSubnet != "" {
-		srv.clientAddr, srv.clientMask, err = ParseSubnet(EdnsClientSubnet)
+	if body != nil {
+		err = json.Unmarshal(body, &srv)
+		if err != nil {
+			logger.Error(err.Error())
+			return
+		}
+	}
+
+	if srv.EdnsClientSubnet != "" {
+		srv.clientAddr, srv.clientMask, err = ParseSubnet(srv.EdnsClientSubnet)
 		if err != nil {
 			logger.Error(err.Error())
 			return

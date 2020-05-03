@@ -1,5 +1,7 @@
 {
-    "service-url": "udp://0.0.0.0:5053",
+    "service": {
+	"url": "udp://0.0.0.0:5053"
+    },
     "client": {
 	"url": "https://security.cloudflare-dns.com/dns-query"
     }
