@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/miekg/dns"
@@ -20,7 +19,10 @@ const (
 
 var (
 	ErrConfigParse = errors.New("config parse error")
-	Short          bool
+	ErrParameter   = errors.New("parameter error")
+	FmtShort       bool
+	FmtJson        bool
+	QType          string
 	Subnet         string
 	Driver         string
 	URL            string
@@ -140,7 +142,13 @@ func (cfg *Config) CreateService(cli Client) (srv Server, err error) {
 	return
 }
 
-func QueryDN(cli Client, dn string, qtype uint16) (err error) {
+func QueryDN(cli Client, dn string) (err error) {
+	qtype, ok := dns.StringToType[QType]
+	if !ok {
+		err = ErrParameter
+		return
+	}
+
 	ctx := context.Background()
 	quiz := &dns.Msg{}
 	quiz.SetQuestion(dns.Fqdn(dn), qtype)
@@ -166,7 +174,8 @@ func QueryDN(cli Client, dn string, qtype uint16) (err error) {
 
 	elapsed := time.Since(start)
 
-	if Short {
+	switch {
+	case FmtShort:
 		for _, rr := range ans.Answer {
 			switch v := rr.(type) {
 			case *dns.A:
@@ -177,12 +186,31 @@ func QueryDN(cli Client, dn string, qtype uint16) (err error) {
 				fmt.Println(v.Target)
 			}
 		}
-	} else {
+
+	case FmtJson:
+		jsonresp := &DNSMsg{}
+		err = jsonresp.FromAnswer(quiz, ans)
+		if err != nil {
+			logger.Error(err.Error())
+			return
+		}
+
+		var bresp []byte
+		bresp, err = json.Marshal(jsonresp)
+		if err != nil {
+			logger.Error(err.Error())
+			return
+		}
+
+		fmt.Printf("%s", string(bresp))
+
+	default:
 		fmt.Println(ans.String())
 		fmt.Printf(";; Query time: %d msec\n", elapsed.Milliseconds())
 		fmt.Printf(";; SERVER: %s\n", cli.Url())
 		fmt.Printf(";; WHEN: %s\n\n", start.Format(time.UnixDate))
 	}
+
 	return
 }
 
@@ -192,14 +220,14 @@ func main() {
 	var Loglevel string
 	var Profile string
 	var Query bool
-	var IP string
 	flag.StringVar(&ConfigFile, "config", "", "config file")
 	flag.StringVar(&Loglevel, "loglevel", "", "log level")
 	flag.StringVar(&Profile, "profile", "", "run profile")
 	flag.BoolVar(&Query, "q", false, "query")
-	flag.BoolVar(&Short, "short", false, "show short answer")
+	flag.BoolVar(&FmtShort, "short", false, "show short answer")
+	flag.BoolVar(&FmtJson, "json", false, "show json answer")
 	flag.StringVar(&Subnet, "subnet", "", "edns client subnet")
-	flag.StringVar(&IP, "ip", "4", "ip version to query")
+	flag.StringVar(&QType, "type", "A", "qtype")
 	flag.StringVar(&Driver, "driver", "", "client driver")
 	flag.StringVar(&URL, "url", "", "client url")
 	flag.BoolVar(&Insecure, "insecure", false, "don't check cert in https")
@@ -238,12 +266,7 @@ func main() {
 	switch {
 	case Query:
 		for _, dn := range flag.Args() {
-			if strings.Contains(IP, "4") {
-				QueryDN(cli, dn, dns.TypeA)
-			}
-			if strings.Contains(IP, "6") {
-				QueryDN(cli, dn, dns.TypeAAAA)
-			}
+			QueryDN(cli, dn)
 		}
 
 	case cfg.Service != nil:
