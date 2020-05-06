@@ -3,20 +3,15 @@ package drivers
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"net"
 	"net/url"
 
 	"github.com/miekg/dns"
 )
 
-var (
-	ErrParseSubnet = errors.New("failed to parse subnet")
-)
-
 type DnsClient struct {
-	host string
 	URL  string
+	host string
 	cli  *dns.Client
 }
 

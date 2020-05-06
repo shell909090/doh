@@ -6,7 +6,6 @@ import (
 	"crypto/tls"
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"io"
 	"io/ioutil"
 	"net"
@@ -14,10 +13,6 @@ import (
 	"net/url"
 
 	"github.com/miekg/dns"
-)
-
-var (
-	ErrRequest = errors.New("failed to get response")
 )
 
 func WriteFull(w io.Writer, b []byte) (err error) {

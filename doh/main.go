@@ -29,66 +29,7 @@ var (
 	Subnet         string
 	Driver         string
 	URL            string
-	Aliases        *map[string]string
 )
-
-type DriverHeader struct {
-	Driver string
-	URL    string
-}
-
-func (header *DriverHeader) CreateClient(body json.RawMessage) (cli drivers.Client, err error) {
-	if URL, ok := (*Aliases)[header.URL]; ok {
-		header.URL = URL
-	}
-
-	if header.Driver == "" {
-		header.Driver, err = drivers.GuessDriver(header.URL)
-		if err != nil {
-			logger.Error(err.Error())
-			return
-		}
-	}
-
-	switch header.Driver {
-	case "dns":
-		cli, err = drivers.NewDnsClient(header.URL)
-	case "google":
-		cli, err = drivers.NewGoogleClient(header.URL, body)
-	case "rfc8484":
-		cli, err = drivers.NewRfc8484Client(header.URL, body)
-	default:
-		err = ErrConfigParse
-	}
-
-	return
-}
-
-func (header *DriverHeader) CreateService(cli drivers.Client, body json.RawMessage) (srv drivers.Server, err error) {
-	if header.Driver == "" {
-		header.Driver, err = drivers.GuessDriver(header.URL)
-		if err != nil {
-			logger.Error(err.Error())
-			return
-		}
-	}
-
-	switch header.Driver {
-	case "dns":
-		srv, err = drivers.NewDnsServer(cli, header.URL, body)
-	case "doh", "http", "https":
-		srv, err = drivers.NewDoHServer(cli, header.URL, body)
-	default:
-		err = ErrConfigParse
-		return
-	}
-
-	if err != nil {
-		logger.Error(err.Error())
-		return
-	}
-	return
-}
 
 type Config struct {
 	Logfile  string
@@ -99,7 +40,7 @@ type Config struct {
 }
 
 func (cfg *Config) CreateClient() (cli drivers.Client, err error) {
-	var header DriverHeader
+	var header drivers.DriverHeader
 	if cfg.Client != nil {
 		err = json.Unmarshal(cfg.Client, &header)
 		if err != nil {
@@ -126,7 +67,7 @@ func (cfg *Config) CreateClient() (cli drivers.Client, err error) {
 }
 
 func (cfg *Config) CreateService(cli drivers.Client) (srv drivers.Server, err error) {
-	var header DriverHeader
+	var header drivers.DriverHeader
 	if cfg.Service != nil {
 		err = json.Unmarshal(cfg.Service, &header)
 		if err != nil {
@@ -255,7 +196,7 @@ func main() {
 	}
 	drivers.SetLogging(cfg.Logfile, cfg.Loglevel)
 
-	Aliases = &cfg.Aliases
+	drivers.Aliases = &cfg.Aliases
 
 	cli, err := cfg.CreateClient()
 	if err != nil {

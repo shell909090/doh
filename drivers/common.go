@@ -17,8 +17,11 @@ import (
 
 var (
 	ErrConfigParse = errors.New("config parse error")
+	ErrParseSubnet = errors.New("failed to parse subnet")
+	ErrRequest     = errors.New("failed to get response")
 	logger         = logging.MustGetLogger("drivers")
 	Insecure       bool
+	Aliases        *map[string]string
 )
 
 type Client interface {

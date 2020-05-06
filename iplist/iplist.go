@@ -13,10 +13,10 @@ import (
 )
 
 var (
-	logger = logging.MustGetLogger("ipfilter")
+	logger = logging.MustGetLogger("iplist")
 )
 
-type IPFilter struct {
+type IPList struct {
 	rest []*net.IPNet
 	idx1 map[byte][]*net.IPNet
 	idx2 map[uint16][]*net.IPNet
@@ -32,7 +32,7 @@ func ListConatins(iplist []*net.IPNet, ip net.IP) bool {
 	return false
 }
 
-func (f IPFilter) Contain(ip net.IP) bool {
+func (f *IPList) Contain(ip net.IP) bool {
 	if x := ip.To4(); x != nil {
 		ip = x
 	}
@@ -82,9 +82,9 @@ func ParseLine(line string) (ipnet *net.IPNet, err error) {
 	return
 }
 
-func ReadIPList(f io.Reader) (filter *IPFilter, err error) {
+func ReadIPList(f io.Reader) (filter *IPList, err error) {
 	reader := bufio.NewReader(f)
-	filter = &IPFilter{
+	filter = &IPList{
 		idx1: make(map[byte][]*net.IPNet),
 		idx2: make(map[uint16][]*net.IPNet),
 	}
@@ -126,14 +126,14 @@ QUIT:
 		counter++
 	}
 
-	logger.Noticef(
+	logger.Infof(
 		"blacklist loaded %d record(s), %d index1, %d index2 and %d no indexed.",
 		counter, len(filter.idx1), len(filter.idx2), len(filter.rest))
 	return
 }
 
-func ReadIPListFile(filename string) (filter *IPFilter, err error) {
-	logger.Noticef("load iplist from file %s.", filename)
+func ReadIPListFile(filename string) (filter *IPList, err error) {
+	logger.Infof("load iplist from file %s.", filename)
 
 	var f io.ReadCloser
 	f, err = os.Open(filename)
