@@ -1,0 +1,15 @@
+{
+    "service": {
+	"url": "udp://0.0.0.0:5253"
+    },
+    "client": {
+	"driver": "twin",
+	"direct-routes": "data/routes.list.gz",
+	"primary": {
+	    "url": "udp://114.114.114.114:53"
+	},
+	"secondary": {
+	    "url": "udp://8.8.4.4:53"
+	}
+    }
+}

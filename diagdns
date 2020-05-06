@@ -19,6 +19,7 @@ do
    show_ping "$DN" "8888   " $(dig +short "$DN" @8.8.8.8 | tail -n 1) &
    show_ping "$DN" "gtls   " $(bin/doh -q --short --url "gtls" "$DN" | tail -n 1) &
    show_ping "$DN" "google " $(bin/doh -q --short --url "google" "$DN" | tail -n 1) &
+   show_ping "$DN" "twin   " $(bin/doh -q --short --config "data/twin.json" "$DN" | tail -n 1) &
    show_ping "$DN" "opendns" $(dig +short "$DN" @208.67.222.222 | tail -n 1) &
    show_ping "$DN" "one    " $(bin/doh -q --short --url "one" "$DN" | tail -n 1) &
    show_ping "$DN" "cf     " $(bin/doh -q --short --url "cf" "$DN" | tail -n 1) &

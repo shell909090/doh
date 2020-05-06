@@ -41,6 +41,7 @@ test-query: bin/doh
 	bin/doh -q --url tcp-tls://one.one.one.one www.baidu.com
 	bin/doh -q --url https://security.cloudflare-dns.com/dns-query www.baidu.com
 	bin/doh -q --url https://dns.google.com/resolve www.baidu.com
+	bin/doh -q --config data/twin.json www.baidu.com
 
 test-short: bin/doh
 	bin/doh -q --short --url 114 www.baidu.com
@@ -48,6 +49,7 @@ test-short: bin/doh
 	bin/doh -q --short --url one www.baidu.com
 	bin/doh -q --short --url cf www.baidu.com
 	bin/doh -q --short --url google www.baidu.com
+	bin/doh -q --short --config data/twin.json www.baidu.com
 
 test-edns: bin/doh
 	bin/doh -q --short --url udp://114.114.114.114 www.google.com
@@ -59,9 +61,12 @@ test-edns: bin/doh
 	bin/doh -q --short --url https://dns.google.com/resolve www.google.com
 	bin/doh -q --short --subnet 101.80.0.0 --url https://dns.google.com/resolve www.google.com
 	bin/doh -q --short --subnet 104.244.42.1 --url https://dns.google.com/resolve www.google.com
+	bin/doh -q --short --config data/twin.json www.google.com
+	bin/doh -q --short --subnet 101.80.0.0 --config data/twin.json www.google.com
+	bin/doh -q --short --subnet 104.244.42.1 --config data/twin.json www.google.com
 
 test-rfc8484: bin/doh
-	bin/doh --config rfc8484.json &
+	bin/doh --config data/rfc8484.json &
 	sleep 1
 	dig +short www.google.com @127.0.0.1 -p 5053
 	dig +short +subnet=101.80.0.0 www.google.com @127.0.0.1 -p 5053
@@ -69,7 +74,7 @@ test-rfc8484: bin/doh
 	killall doh
 
 test-google: bin/doh
-	bin/doh --config google.json &
+	bin/doh --config data/google.json &
 	sleep 1
 	dig +short www.google.com @127.0.0.1 -p 5153
 	dig +short +subnet=101.80.0.0 www.google.com @127.0.0.1 -p 5153
@@ -77,7 +82,7 @@ test-google: bin/doh
 	killall doh
 
 test-http: bin/doh
-	bin/doh --config http.json &
+	bin/doh --config data/http.json &
 	sleep 1
 	bin/doh -q --short --url http://localhost:8053/dns-query www.baidu.com
 	bin/doh -q --short --url http://localhost:8053/resolve www.baidu.com
@@ -85,7 +90,7 @@ test-http: bin/doh
 	killall doh
 
 test-https: bin/doh
-	bin/doh --config https.json &
+	bin/doh --config data/https.json &
 	sleep 1
 	bin/doh -q --short --url https://localhost:8153/dns-query --insecure www.baidu.com
 	bin/doh -q --short --url https://localhost:8153/resolve --insecure www.baidu.com
