@@ -1,8 +1,8 @@
 {
     "service": {
-	"udp://0.0.0.0:5053"
+	"url": "udp://0.0.0.0:5053"
     },
     "client": {
-	"https://dns.google.com/resolve"
+	"url": "https://dns.google.com/resolve"
     }
 }

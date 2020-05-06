@@ -12,6 +12,6 @@ export DH_GOPKG := github.com/shell909090/doh
 
 
 %:
-	dh $@ --with=systemd
+	dh $@
 
 override_dh_auto_test:

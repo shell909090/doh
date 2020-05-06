@@ -1,3 +1,10 @@
+doh (1.0.1) unstable; urgency=medium
+
+  * new config structures.
+  * introduce twin.
+
+ -- Shell.Xu <shell909090@gmail.com>  Thu, 07 May 2020 00:02:45 +0800
+
 doh (1.0-1) unstable; urgency=medium
 
   * Initial release.
