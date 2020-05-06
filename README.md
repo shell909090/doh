@@ -70,7 +70,7 @@ Here are some examples as output.
 
 Here are some examples as input.
 
-	doh --config udp-rfc8484.json
+	doh --config data/udp-rfc8484.json
 	dig www.baidu.com @127.0.0.1 -p 5053
 
 ## doh
@@ -91,11 +91,11 @@ As an input protocol, doh are fine. We support both protocols on the same http/h
 
 Here are some examples as input.
 
-	doh --config doh.json
+	doh --config data/http.json &
 	doh -q --url http://localhost:8053/dns-query www.baidu.com
 	doh -q --url http://localhost:8053/resolve www.baidu.com
 
-	doh --config dohs.json
+	doh --config data/https.json &
 	doh -q --url https://localhost:8153/dns-query --insecure www.baidu.com
 	doh -q --url https://localhost:8153/resolve --insecure www.baidu.com
 
@@ -140,7 +140,7 @@ Generally speaking, udp are accessible in China, but the results will been poisi
 * Accept protocols: udp/tcp/tcp-tls/google.
 * Response time in Shanghai: udp:75, tcp:90, tcp-tls:250
 * Response time in Japan IDC: udp:1, tcp:2, tcp-tls:40, google:5-100
-* Accept edns-client-subnet with protocol google.
+* Accept edns-client-subnet with protocol google. Sometimes edns-client-subnet work with udp, dependence on which server you actually use.
 * In China: tcp-tls accessible. `google` need a proxy.
 * A proxy will be needed for protocol google in China.
 
