@@ -11,6 +11,8 @@ import (
 	"time"
 
 	"github.com/miekg/dns"
+	logging "github.com/op/go-logging"
+	"github.com/shell909090/doh/drivers"
 )
 
 const (
@@ -20,13 +22,13 @@ const (
 var (
 	ErrConfigParse = errors.New("config parse error")
 	ErrParameter   = errors.New("parameter error")
+	logger         = logging.MustGetLogger("")
 	FmtShort       bool
 	FmtJson        bool
 	QType          string
 	Subnet         string
 	Driver         string
 	URL            string
-	Insecure       bool
 	Aliases        *map[string]string
 )
 
@@ -35,13 +37,13 @@ type DriverHeader struct {
 	URL    string
 }
 
-func (header *DriverHeader) CreateClient(body json.RawMessage) (cli Client, err error) {
+func (header *DriverHeader) CreateClient(body json.RawMessage) (cli drivers.Client, err error) {
 	if URL, ok := (*Aliases)[header.URL]; ok {
 		header.URL = URL
 	}
 
 	if header.Driver == "" {
-		header.Driver, err = GuessDriver(header.URL)
+		header.Driver, err = drivers.GuessDriver(header.URL)
 		if err != nil {
 			logger.Error(err.Error())
 			return
@@ -50,11 +52,11 @@ func (header *DriverHeader) CreateClient(body json.RawMessage) (cli Client, err 
 
 	switch header.Driver {
 	case "dns":
-		cli, err = NewDnsClient(header.URL)
+		cli, err = drivers.NewDnsClient(header.URL)
 	case "google":
-		cli, err = NewGoogleClient(header.URL, body)
+		cli, err = drivers.NewGoogleClient(header.URL, body)
 	case "rfc8484":
-		cli, err = NewRfc8484Client(header.URL, body)
+		cli, err = drivers.NewRfc8484Client(header.URL, body)
 	default:
 		err = ErrConfigParse
 	}
@@ -62,9 +64,9 @@ func (header *DriverHeader) CreateClient(body json.RawMessage) (cli Client, err 
 	return
 }
 
-func (header *DriverHeader) CreateService(cli Client, body json.RawMessage) (srv Server, err error) {
+func (header *DriverHeader) CreateService(cli drivers.Client, body json.RawMessage) (srv drivers.Server, err error) {
 	if header.Driver == "" {
-		header.Driver, err = GuessDriver(header.URL)
+		header.Driver, err = drivers.GuessDriver(header.URL)
 		if err != nil {
 			logger.Error(err.Error())
 			return
@@ -73,9 +75,9 @@ func (header *DriverHeader) CreateService(cli Client, body json.RawMessage) (srv
 
 	switch header.Driver {
 	case "dns":
-		srv, err = NewDnsServer(cli, header.URL, body)
+		srv, err = drivers.NewDnsServer(cli, header.URL, body)
 	case "doh", "http", "https":
-		srv, err = NewDoHServer(cli, header.URL, body)
+		srv, err = drivers.NewDoHServer(cli, header.URL, body)
 	default:
 		err = ErrConfigParse
 		return
@@ -96,7 +98,7 @@ type Config struct {
 	Aliases  map[string]string
 }
 
-func (cfg *Config) CreateClient() (cli Client, err error) {
+func (cfg *Config) CreateClient() (cli drivers.Client, err error) {
 	var header DriverHeader
 	if cfg.Client != nil {
 		err = json.Unmarshal(cfg.Client, &header)
@@ -123,7 +125,7 @@ func (cfg *Config) CreateClient() (cli Client, err error) {
 	return
 }
 
-func (cfg *Config) CreateService(cli Client) (srv Server, err error) {
+func (cfg *Config) CreateService(cli drivers.Client) (srv drivers.Server, err error) {
 	var header DriverHeader
 	if cfg.Service != nil {
 		err = json.Unmarshal(cfg.Service, &header)
@@ -142,7 +144,7 @@ func (cfg *Config) CreateService(cli Client) (srv Server, err error) {
 	return
 }
 
-func QueryDN(cli Client, dn string) (err error) {
+func QueryDN(cli drivers.Client, dn string) (err error) {
 	qtype, ok := dns.StringToType[QType]
 	if !ok {
 		err = ErrParameter
@@ -156,12 +158,12 @@ func QueryDN(cli Client, dn string) (err error) {
 	if Subnet != "" {
 		var addr net.IP
 		var mask uint8
-		addr, mask, err = ParseSubnet(Subnet)
+		addr, mask, err = drivers.ParseSubnet(Subnet)
 		if err != nil {
 			logger.Error(err.Error())
 			return
 		}
-		appendEdns0Subnet(quiz, addr, mask)
+		drivers.AppendEdns0Subnet(quiz, addr, mask)
 	}
 
 	start := time.Now()
@@ -188,7 +190,7 @@ func QueryDN(cli Client, dn string) (err error) {
 		}
 
 	case FmtJson:
-		jsonresp := &DNSMsg{}
+		jsonresp := &drivers.DNSMsg{}
 		err = jsonresp.FromAnswer(quiz, ans)
 		if err != nil {
 			logger.Error(err.Error())
@@ -230,18 +232,18 @@ func main() {
 	flag.StringVar(&QType, "type", "A", "qtype")
 	flag.StringVar(&Driver, "driver", "", "client driver")
 	flag.StringVar(&URL, "url", "", "client url")
-	flag.BoolVar(&Insecure, "insecure", false, "don't check cert in https")
+	flag.BoolVar(&drivers.Insecure, "insecure", false, "don't check cert in https")
 	flag.Parse()
 
 	cfg := &Config{}
-	err = LoadJson(DefaultConfigs, cfg)
+	err = drivers.LoadJson(DefaultConfigs, cfg)
 	if err != nil {
 		fmt.Println(err.Error())
 		return
 	}
 
 	if ConfigFile != "" {
-		err = LoadJson(ConfigFile, cfg)
+		err = drivers.LoadJson(ConfigFile, cfg)
 		if err != nil {
 			fmt.Println(err.Error())
 			return
@@ -251,7 +253,7 @@ func main() {
 	if Loglevel != "" {
 		cfg.Loglevel = Loglevel
 	}
-	SetLogging(cfg.Logfile, cfg.Loglevel)
+	drivers.SetLogging(cfg.Logfile, cfg.Loglevel)
 
 	Aliases = &cfg.Aliases
 
@@ -278,7 +280,7 @@ func main() {
 			}()
 		}
 
-		var srv Server
+		var srv drivers.Server
 		srv, err = cfg.CreateService(cli)
 		if err != nil {
 			logger.Error(err.Error())

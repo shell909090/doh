@@ -24,6 +24,12 @@ install: bin/doh
 	install -d $(DESTDIR)/usr/bin/
 	install -m 755 -s bin/doh $(DESTDIR)/usr/bin/
 
+test:
+	go test -v github.com/shell909090/doh/iplist
+
+benchmark:
+	go test -v github.com/shell909090/doh/iplist -bench . -benchmem
+
 build-deb:
 	dpkg-buildpackage --no-sign
 	mkdir -p debuild

@@ -1,4 +1,4 @@
-package main
+package drivers
 
 import (
 	"context"
@@ -96,7 +96,7 @@ func (srv *DnsServer) ServeDNS(w dns.ResponseWriter, quiz *dns.Msg) {
 	logger.Infof("dns server query: %s", quiz.Question[0].Name)
 
 	if srv.clientAddr != nil {
-		appendEdns0Subnet(quiz, srv.clientAddr, srv.clientMask)
+		AppendEdns0Subnet(quiz, srv.clientAddr, srv.clientMask)
 	}
 
 	ctx := context.Background()

@@ -1,4 +1,4 @@
-package main
+package drivers
 
 import (
 	"bytes"
@@ -184,10 +184,10 @@ func (handler *Rfc8484Handler) ServeHTTP(w http.ResponseWriter, req *http.Reques
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
-		appendEdns0Subnet(quiz, addr, mask)
+		AppendEdns0Subnet(quiz, addr, mask)
 
 	default:
-		appendEdns0Subnet(quiz, handler.clientAddr, handler.clientMask)
+		AppendEdns0Subnet(quiz, handler.clientAddr, handler.clientMask)
 	}
 
 	logger.Infof("rfc8484 server query: %s", quiz.Question[0].Name)

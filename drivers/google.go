@@ -1,4 +1,4 @@
-package main
+package drivers
 
 import (
 	"context"
@@ -163,7 +163,7 @@ func (handler *GoogleHandler) ServeHTTP(w http.ResponseWriter, req *http.Request
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
-		appendEdns0Subnet(quiz, addr, mask)
+		AppendEdns0Subnet(quiz, addr, mask)
 
 	case handler.EdnsClientSubnet == "client":
 		addr, mask, err = ParseSubnet(req.RemoteAddr)
@@ -172,10 +172,10 @@ func (handler *GoogleHandler) ServeHTTP(w http.ResponseWriter, req *http.Request
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
-		appendEdns0Subnet(quiz, addr, mask)
+		AppendEdns0Subnet(quiz, addr, mask)
 
 	case handler.EdnsClientSubnet != "":
-		appendEdns0Subnet(quiz, handler.clientAddr, handler.clientMask)
+		AppendEdns0Subnet(quiz, handler.clientAddr, handler.clientMask)
 	}
 
 	if req.Form.Get("do") != "" {
@@ -297,7 +297,7 @@ func (msg *DNSMsg) TranslateAnswer(quiz *dns.Msg) (ans *dns.Msg, err error) {
 			logger.Error(err.Error())
 			return
 		}
-		appendEdns0Subnet(ans, addr, mask)
+		AppendEdns0Subnet(ans, addr, mask)
 	}
 
 	return

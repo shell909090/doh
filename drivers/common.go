@@ -1,8 +1,9 @@
-package main
+package drivers
 
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net"
 	"net/url"
 	"os"
@@ -15,7 +16,9 @@ import (
 )
 
 var (
-	logger = logging.MustGetLogger("")
+	ErrConfigParse = errors.New("config parse error")
+	logger         = logging.MustGetLogger("drivers")
+	Insecure       bool
 )
 
 type Client interface {
@@ -120,7 +123,7 @@ func GuessPort(u *url.URL) {
 	return
 }
 
-func appendEdns0Subnet(m *dns.Msg, addr net.IP, mask uint8) {
+func AppendEdns0Subnet(m *dns.Msg, addr net.IP, mask uint8) {
 	opt := m.IsEdns0()
 	if opt == nil {
 		opt = &dns.OPT{}
