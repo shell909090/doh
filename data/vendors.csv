@@ -1,0 +1,29 @@
+114,https://www.114dns.com/,
+alidns,https://www.alidns.com/,tls/rfc8484/edns
+dnspod,https://www.dnspod.cn/products/public.dns,edns(httpdns not implemented yet)
+baidu,https://dudns.baidu.com/intro/publicdns/,
+cnnic,http://public.sdns.cn/,
+dnspai,http://www.dnspai.com/public.html,
+onedns,https://www.onedns.net/,
+cloudflare,https://1.1.1.1/,
+google,https://developers.google.com/speed/public-dns/,udp/tcp/tls/rfc8484/google/edns
+opendns,https://www.opendns.com/,
+quad9,https://www.quad9.net/,
+adguard,https://adguard.com/en/adguard-dns/overview.html,tls/rfc8484
+nextdns,https://nextdns.io/,tls/rfc8484
+freenom,https://www.freenom.world/en/index.html,
+dns.sb,https://dns.sb/,udp/tcp/tls/rfc8484,rfc8484(according to the website, udp/tcp/tls should have worked)
+containerpi,https://dns.containerpi.com/,tls/rfc8484/google
+doh.li,https://doh.li/,tls/rfc8484
+he,https://dns.he.net/,
+verisign,https://www.verisign.com/en_US/security-services/public-dns/index.xhtml,
+comodo,https://www.comodo.com/secure-dns/,
+dns-watch,https://dns.watch/,
+safedns,https://www.safedns.com/en/,
+dyn,https://help.dyn.com/internet-guide-setup/,
+freedns,https://freedns.zone/en/,
+opennic,https://www.opennic.org/,
+dnslify,https://www.dnslify.com/,udp/tcp/rfc8484(according to the website, tls should have worked)
+yandex,https://dns.yandex.com/,
+neustar,https://www.home.neustar/dns-services,
+twnic,https://www.twnic.net.tw/,
