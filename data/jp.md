@@ -27,7 +27,6 @@
 | dnspai | udp | 185.0 | Yes | No | 0 |
 | dnspod | tcp | 106.0 | Yes | No | 0 |
 | dnspod | udp | 49.2 | Yes | Yes | 4 |
-| dns.sb | rfc8484 | not available |  |  |  |
 | dns-watch | tcp | 519.0 | No | No | 0 |
 | dns-watch | udp | 267.0 | No | No | 1 |
 | doh.li | rfc8484 | 1160.4 | No | No | 4 |
