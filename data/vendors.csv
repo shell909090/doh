@@ -12,7 +12,6 @@ quad9,https://www.quad9.net/,
 adguard,https://adguard.com/en/adguard-dns/overview.html,tls/rfc8484
 nextdns,https://nextdns.io/,tls/rfc8484
 freenom,https://www.freenom.world/en/index.html,
-dns.sb,https://dns.sb/,udp/tcp/tls/rfc8484,rfc8484(according to the website, udp/tcp/tls should have worked)
 containerpi,https://dns.containerpi.com/,tls/rfc8484/google
 doh.li,https://doh.li/,tls/rfc8484
 he,https://dns.he.net/,

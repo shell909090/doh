@@ -1,0 +1,72 @@
+| vendor | protocol | latency | poisoned | edns client subnet | accuracy |
+| ------ | -------- | ------- | -------- | ------------------ | -------- |
+| 114 | tcp | 20.0 | Yes | No | 4 |
+| 114 | udp | 10.6 | Yes | No | 5 |
+| adguard | rfc8484 | 832.0 | No | No | 0 |
+| adguard | tcp | 143.0 | No | No | 0 |
+| adguard | tls | 273.0 | No | No | 0 |
+| adguard | udp | 72.4 | Yes | Yes | 0 |
+| alidns | rfc8484 | 101.6 | Yes | Yes | 4 |
+| alidns | tcp | 16.0 | Yes | Yes | 5 |
+| alidns | tls | 70.6 | Yes | Yes | 4 |
+| alidns | udp | 7.4 | Yes | Yes | 4 |
+| baidu | udp | 31.8 | Yes | No | 5 |
+| cloudflare | rfc8484 | 656.6 | No | No | 0 |
+| cloudflare | tcp | 68.2 | No | No | 0 |
+| cloudflare | tls | 177.0 | No | No | 0 |
+| cloudflare | udp | 32.4 | Yes | No | 0 |
+| cnnic | udp | 9.6 | Yes | No | 2 |
+| comodo | tcp | 207.0 | No | No | 0 |
+| comodo | udp | 102.0 | Yes | No | 0 |
+| containerpi | google | 1296.6 | No | Yes | 0 |
+| containerpi | rfc8484 | 1267.0 | No | No | 0 |
+| containerpi | tls | 235.6 | No | No | 0 |
+| dnslify | rfc8484 | 1538.75 | No | Yes | 0 |
+| dnslify | tcp | 255.4 | No | No | 0 |
+| dnslify | udp | 83.0 | Yes | No | 0 |
+| dnspai | udp | 6.4 | Yes | No | 4 |
+| dnspod | tcp | 76.2 | Yes | No | 1 |
+| dnspod | udp | 7.6 | Yes | Yes | 4 |
+| dns-watch | tcp | 460.6 | No | No | 0 |
+| dns-watch | udp | 231.0 | Yes | No | 0 |
+| doh.li | rfc8484 | 1697.6 | No | No | 0 |
+| doh.li | tls | 772.6 | No | No | 1 |
+| dyn | tcp | 160.8 | No | No | 3 |
+| dyn | udp | 34.0 | Yes | No | 4 |
+| freedns | udp | 244.2 | Yes | No | 0 |
+| freenom | tcp | 188.2 | No | No | 0 |
+| freenom | udp | 79.25 | Yes | No | 0 |
+| google | google | 679.2 | No | Yes | 0 |
+| google | rfc8484 | 640.0 | No | Yes | 0 |
+| google | tcp | 144.8 | No | Yes | 3 |
+| google | tls | 222.6 | No | Yes | 4 |
+| google | udp | 51.2 | Yes | Yes | 4 |
+| he | rfc8484 | not available |  |  |  |
+| he | tcp | 380.0 | No | No | 0 |
+| he | udp | 216.6 | Yes | No | 0 |
+| neustar | tcp | 15.8 | Yes | No | 2 |
+| neustar | udp | 8.0 | No | No | 2 |
+| nextdns | rfc8484 | 709.6 | No | No | 0 |
+| nextdns | tcp | 99.2 | No | No | 0 |
+| nextdns | tls | 267.0 | No | No | 0 |
+| nextdns | udp | 51.0 | Yes | No | 0 |
+| onedns | udp | 32.2 | Yes | No | 5 |
+| opendns | rfc8484 | 1172.6 | No | No | 0 |
+| opendns | tcp | 294.4 | No | No | 5 |
+| opendns | udp | 227.2 | Yes | No | 5 |
+| opennic | tcp | 149.4 | No | No | 0 |
+| opennic | udp | 72.8 | Yes | No | 0 |
+| quad9 | rfc8484 | 745.4 | No | No | 0 |
+| quad9 | tcp | 186.4 | No | Yes | 0 |
+| quad9 | tls | 339.4 | No | Yes | 0 |
+| quad9 | udp | 76.6 | Yes | Yes | 0 |
+| safedns | tcp | 607.2 | No | No | 0 |
+| safedns | udp | 197.8 | Yes | No | 0 |
+| twnic | rfc8484 | not available |  |  |  |
+| twnic | tcp | 2419.8 | No | No | 0 |
+| twnic | tls | not available |  |  |  |
+| twnic | udp | 87.2 | Yes | No | 0 |
+| verisign | tcp | 65.8 | No | No | 0 |
+| verisign | udp | 34.4 | Yes | No | 0 |
+| yandex | tcp | not available |  |  |  |
+| yandex | udp | not available |  |  |  |

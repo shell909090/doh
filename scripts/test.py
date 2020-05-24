@@ -8,7 +8,6 @@
 '''
 import sys
 import csv
-import pprint
 import random
 import ipaddress
 import subprocess

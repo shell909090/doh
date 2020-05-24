@@ -25,7 +25,6 @@ dnslify,udp,udp://185.235.81.1/
 dnspai,udp,udp://101.226.4.6/
 dnspod,tcp,tcp://119.29.29.29/
 dnspod,udp,udp://119.29.29.29/
-dns.sb,rfc8484,https://dns.sb/dns-query
 dns-watch,tcp,tcp://84.200.69.80/
 dns-watch,udp,udp://84.200.69.80/
 doh.li,rfc8484,https://doh.li/dns-query
