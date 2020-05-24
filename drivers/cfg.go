@@ -10,10 +10,6 @@ type DriverHeader struct {
 }
 
 func (header *DriverHeader) CreateClient(body json.RawMessage) (cli Client, err error) {
-	if URL, ok := (*Aliases)[header.URL]; ok {
-		header.URL = URL
-	}
-
 	if header.Driver == "" {
 		header.Driver, err = GuessDriver(header.URL)
 		if err != nil {

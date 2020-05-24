@@ -265,7 +265,7 @@ func NewDoHServer(cli Client, URL string, body json.RawMessage) (srv *DoHServer,
 	return
 }
 
-func (srv *DoHServer) Run() (err error) {
+func (srv *DoHServer) Serve() (err error) {
 	server := &http.Server{
 		Addr:    srv.addr,
 		Handler: srv.mux,

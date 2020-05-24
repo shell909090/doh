@@ -202,3 +202,7 @@ Generally speaking, udp are accessible in China, but the results will been poisi
 * cache
 * record dns logs
 * multiple outputs, load balance
+
+https://blog.skk.moe/post/which-public-dns-to-use/
+https://github.com/curl/curl/wiki/DNS-over-HTTPS
+https://www.publicdns.xyz/

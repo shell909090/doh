@@ -21,7 +21,6 @@ var (
 	ErrRequest     = errors.New("failed to get response")
 	logger         = logging.MustGetLogger("drivers")
 	Insecure       bool
-	Aliases        *map[string]string
 )
 
 type Client interface {
@@ -30,10 +29,11 @@ type Client interface {
 }
 
 type Server interface {
-	Run() (err error)
+	Serve() (err error)
 }
 
-func LoadJson(configfiles string, cfg interface{}) (err error) {
+func LoadJson(configfiles string, cfg interface{}, ignore_notexist bool) {
+	var err error
 	var file *os.File
 	for _, conf := range strings.Split(configfiles, ";") {
 		if strings.HasPrefix(conf, "~/") {
@@ -43,15 +43,18 @@ func LoadJson(configfiles string, cfg interface{}) (err error) {
 
 		file, err = os.Open(conf)
 		if err != nil {
-			err = nil
-			continue
+			if ignore_notexist {
+				err = nil
+				continue
+			}
+			panic(err.Error())
 		}
 		defer file.Close()
 
 		dec := json.NewDecoder(file)
 		err = dec.Decode(&cfg)
 		if err != nil {
-			return
+			panic(err.Error())
 		}
 	}
 

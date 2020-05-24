@@ -16,7 +16,8 @@ import (
 )
 
 const (
-	DefaultConfigs = "doh.json;~/.doh.json;/etc/doh.json"
+	DEFAULT_CONFIGS = "doh.json;~/.doh.json;/etc/doh.json"
+	DEFAULT_ALIASES = "doh-aliases.json;~/.doh-aliases.json"
 )
 
 var (
@@ -29,6 +30,7 @@ var (
 	Subnet         string
 	Driver         string
 	URL            string
+	Version        string = "unknown"
 )
 
 type Config struct {
@@ -36,7 +38,6 @@ type Config struct {
 	Loglevel string
 	Service  json.RawMessage
 	Client   json.RawMessage
-	Aliases  map[string]string
 }
 
 func (cfg *Config) CreateClient() (cli drivers.Client, err error) {
@@ -52,7 +53,6 @@ func (cfg *Config) CreateClient() (cli drivers.Client, err error) {
 	if URL != "" {
 		header.URL = URL
 	}
-
 	if Driver != "" {
 		header.Driver = Driver
 	}
@@ -157,46 +157,53 @@ func QueryDN(cli drivers.Client, dn string) (err error) {
 	return
 }
 
+// -c class
+// -f batch mode
+// -i reverse
+// -u print query times in microseconds instead of milliseconds.
+// trace
+
 func main() {
 	var err error
 	var ConfigFile string
-	var Loglevel string
 	var Profile string
+	var AliasesFile string
+	var ShowVersion bool
 	var Query bool
 	flag.StringVar(&ConfigFile, "config", "", "config file")
-	flag.StringVar(&Loglevel, "loglevel", "", "log level")
+	flag.StringVar(&AliasesFile, "alias", "", "aliases file")
 	flag.StringVar(&Profile, "profile", "", "run profile")
-	flag.BoolVar(&Query, "q", false, "query")
 	flag.BoolVar(&FmtShort, "short", false, "show short answer")
 	flag.BoolVar(&FmtJson, "json", false, "show json answer")
 	flag.StringVar(&Subnet, "subnet", "", "edns client subnet")
-	flag.StringVar(&QType, "type", "A", "qtype")
+	flag.BoolVar(&Query, "q", false, "force do query")
+	flag.StringVar(&QType, "t", "A", "resource record type to query.")
 	flag.StringVar(&Driver, "driver", "", "client driver")
-	flag.StringVar(&URL, "url", "", "client url")
+	flag.StringVar(&URL, "s", "", "server url to query")
 	flag.BoolVar(&drivers.Insecure, "insecure", false, "don't check cert in https")
+	flag.BoolVar(&ShowVersion, "version", false, "show version")
 	flag.Parse()
 
-	cfg := &Config{}
-	err = drivers.LoadJson(DefaultConfigs, cfg)
-	if err != nil {
-		fmt.Println(err.Error())
+	if ShowVersion {
+		fmt.Printf("version: %s\n", Version)
 		return
 	}
 
+	cfg := &Config{}
+	drivers.LoadJson(DEFAULT_ALIASES, cfg, true)
 	if ConfigFile != "" {
-		err = drivers.LoadJson(ConfigFile, cfg)
-		if err != nil {
-			fmt.Println(err.Error())
-			return
-		}
-	}
-
-	if Loglevel != "" {
-		cfg.Loglevel = Loglevel
+		drivers.LoadJson(ConfigFile, cfg, false)
 	}
 	drivers.SetLogging(cfg.Logfile, cfg.Loglevel)
 
-	drivers.Aliases = &cfg.Aliases
+	var Aliases map[string]string
+	drivers.LoadJson(DEFAULT_ALIASES, &Aliases, true)
+	if AliasesFile != "" {
+		drivers.LoadJson(AliasesFile, &Aliases, false)
+	}
+	if AliasURL, ok := Aliases[URL]; ok {
+		URL = AliasURL
+	}
 
 	cli, err := cfg.CreateClient()
 	if err != nil {
@@ -207,12 +214,7 @@ func main() {
 	logger.Debugf("%+v", cli)
 
 	switch {
-	case Query:
-		for _, dn := range flag.Args() {
-			QueryDN(cli, dn)
-		}
-
-	case cfg.Service != nil:
+	case cfg.Service != nil && !Query:
 		if Profile != "" {
 			go func() {
 				logger.Infof("golang profile %s", Profile)
@@ -228,15 +230,16 @@ func main() {
 			return
 		}
 
-		err = srv.Run()
+		err = srv.Serve()
 		if err != nil {
 			logger.Error(err.Error())
 			return
 		}
 
 	default:
-		logger.Error("no query nor server, quit.")
-		return
+		for _, dn := range flag.Args() {
+			QueryDN(cli, dn)
+		}
 	}
 
 	return

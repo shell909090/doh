@@ -114,7 +114,7 @@ func (srv *DnsServer) ServeDNS(w dns.ResponseWriter, quiz *dns.Msg) {
 	return
 }
 
-func (srv *DnsServer) Run() (err error) {
+func (srv *DnsServer) Serve() (err error) {
 	// FIXME: cert?
 	server := &dns.Server{
 		Net:     srv.net,
