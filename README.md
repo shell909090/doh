@@ -7,17 +7,12 @@
   * [Client Config](#client-config)
 * [Drivers and Protocols](#drivers-and-protocols)
   * [dns](#dns)
-  * [doh](#doh)
+  * [rfc8484](#rfc8484)
+  * [google](#google)
+  * [doh/http/https](#doh/http/https)
+  * [twin](twin)
 * [Public recursive server](#public-recursive-server)
-  * [114](#114)
-  * [Cloudflare one](#cloudflare-one)
-  * [Cloudflare doh](#cloudflare-doh)
-  * [Google](#google)
-  * [OpenDNS](#opendns)
-  * [Quad9](#quad9)
-  * [NextDNS](#nextdns)
-* [Config](#config)
-* [Suggestions in China](#suggestions-in-china)
+* [Suggestions](#suggestions)
 * [TODO](#todo)
 
 # Abstract
@@ -36,15 +31,24 @@ See `doh --help`.
 
 # Config
 
+Defaultly doh will try to read configs from `doh.json;~/.doh.json;/etc/doh.json`.
+
 * logfile: optional. indicate which file log should be written to. empty means stdout. empty by default.
 * loglevel: optional. log level. warning by default.
-* service-driver: optional. see "drivers and protocols". if empty, program will auto guess.
-* service-url: required. see "drivers and protocols".
-* cert-file: optional. cert file when use doh.
-* key-file: optional. key file when use doh.
-* edns-client-subnet: optional. it could be empty, means don't do anything. or "client", means read remote address and put it into edns-client-subnet. or an ip address/cidr subnet, means put this address into edns-client-subnet. empty by default.
-* client: client settings.
-* aliases: a dict. if url matches the key, it will be replaced by value.
+* service: service config
+  * driver: driver to use.
+  * url: url to driver.
+  * ... the rest of the config depends on the driver.
+* client: client config
+  * driver: driver to use.
+  * url: url to driver.
+  * ... the rest of the config depends on the driver.
+
+## aliases
+
+Defaultly doh will try to read aliases from `doh-aliases.json;~/.doh-aliases.json`.
+
+If the server from the command line matches the key, the value will be used.
 
 ## Client Config
 
@@ -56,54 +60,70 @@ See `doh --help`.
 
 ## dns
 
-There have three different protocols in driver DNS:
+There are three different protocols in driver `dns`:
 
-* udp
-* tcp
-* tcp-tls
+* udp: default port 53
+* tcp: default port 53
+* tcp-tls: default port 853
 
-Here are some examples as output.
+This driver can be used in both client and server settings.
 
-	doh -q --url udp://114.114.114.114:53 www.baidu.com
-	doh -q --url tcp://114.114.114.114:53 www.baidu.com
-	doh -q --url tcp-tls://one.one.one.one:853 www.baidu.com
+Server Config:
 
-Here are some examples as input.
+* ednsclientsubnet: as its name.
 
-	doh --config data/udp-rfc8484.json
-	dig www.baidu.com @127.0.0.1 -p 5053
+## rfc8484
 
-## doh
+There is one protocol in driver `rfc8484`. 
 
-DoH means DNS over HTTPS. It include two drivers:
+* https: default port 443, default path is `/dns-query`.
 
-* rfc8484
-* google
+This driver can only be used in client setting.
 
-As an output driver, you should indicate which driver exactly. We will guess if you don't say it explicitly.
+Client Config:
 
-Here are some examples as output.
+* insecure: don't check the certificates.
 
-	doh -q --url https://security.cloudflare-dns.com/dns-query www.baidu.com
-	doh -q --url https://dns.google.com/resolve www.baidu.com
+## google
 
-As an input protocol, doh are fine. We support both protocols on the same http/https server.
+There is one protocol in driver `rfc8484`. 
 
-Here are some examples as input.
+* https: default port 443, default path is `/resolve`.
 
-	doh --config data/http.json &
-	doh -q --url http://localhost:8053/dns-query www.baidu.com
-	doh -q --url http://localhost:8053/resolve www.baidu.com
+This driver can only be used in client setting.
 
-	doh --config data/https.json &
-	doh -q --url https://localhost:8153/dns-query --insecure www.baidu.com
-	doh -q --url https://localhost:8153/resolve --insecure www.baidu.com
+Client Config:
+
+* insecure: don't check the certificates.
+
+## doh/http/https
+
+This driver can only be used in server setting. It supports both `rfc8484` and `google`.
+
+Server Config:
+
+* ednsclientsubnet: as its name. if it's `client`, then the actual client IP address will be put into the field.
+* certfile: file path of the certificates.
+* keyfile: file path of the key.
+
+## twin
+
+This driver can only be used in client setting.
+
+Client Config:
+
+* primary: another client config.
+* secondary: another client config.
+* direct-routes: a route file.
+
+The quiz will be sent to the primary. If none of the answers match any routes in `direct-routes`, the quiz will be sent to the secondary and we return the answers from the secondary. Otherwise the answers from the primary will be used.
 
 # Public recursive server
 
 * [Public Recursive Servers](data/public.csv)
 * [Shanghai Telecom](data/sh-telecom.md), [csv](data/sh-telecom.csv)
 * [Japan IDC](data/jp.md), [csv](data/jp.csv)
+* [Seattle IDC](data/seattle.md), [csv](data/seattle.csv)
 
 source:
 
@@ -113,18 +133,13 @@ source:
 
 # Suggestions
 
-1. Ignore those has an accuracy less than 4.
-2. Ignore those has a latency more than 30.
-3. 114, alidns, dnspai, dnspod are acceptable in China. baidu, onedns are a bit more than 30.
-4. alidns and dnspod support edns client subnet, and alidns has the most wide protocol supportive in China.
-
-1. Don't use Quad9, NextDNS, and AdGuard. Wrong results means useless.
-2. I won't suggest Cloudflare. Not the best result. Don't use it unless running out of other options.
-3. My first option is Google with tcp-tls. Accessible, accurate, easy.
-4. Secend option is Google/OpenDNS with udp. Find yourself a way to dodge the firewall.
-4. Google with edns-client-subnet (proxy needed) are barely acceptable.
-5. If you want tcp-tls, the first choice is Google, then Cloudflare.
-6. If you want rfc8484, the first choice is OpenDNS, then Cloudflare.
+1. Ignore those that have an accuracy less than 4. Ignore those that have a latency more than 30.
+2. 114, alidns, dnspai, dnspod are acceptable in China. baidu, onedns are a bit more than 30.
+3. alidns and dnspod support edns client subnet, and alidns has the most wide protocol supportive in China.
+4. adguard, cloudflare, comodo, google, he, nextdns, opennic, safedns are acceptable in Japan. dnspod are almost 50. opendns are more than 40.
+5. adguard, google support edns client subnet, and they have the most wide protocol supportive in China. cloudflare, nextdns also support 4 protocols, except they don't support edns client subnet.
+6. Seattle has almost the same situation as Japan. Except dyn becomes acceptable, and opennic becomes unacceptable.
+7. If you are in China. alidns is the best choice you have. And if you are not in China, adguard and google are the best.
 
 # TODO
 
