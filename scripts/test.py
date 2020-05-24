@@ -81,7 +81,7 @@ def main():
     global most_match
     most_match = {}
     for domain in accuracy_domains:
-        p = subprocess.run(['bin/doh', '-short', '-s', 'udp://114.114.114.114', domain], capture_output=True)
+        p = subprocess.run(['bin/doh', '-short', '-s', sys.argv[2], domain], capture_output=True)
         most_match[domain] = set(result_parse(p))
 
     with open(sys.argv[1]) as fi:
