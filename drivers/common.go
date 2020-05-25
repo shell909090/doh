@@ -19,6 +19,7 @@ var (
 	ErrConfigParse = errors.New("config parse error")
 	ErrParseSubnet = errors.New("failed to parse subnet")
 	ErrRequest     = errors.New("failed to get response")
+	ErrBadQtype    = errors.New("wrong or unsupported qtype")
 	logger         = logging.MustGetLogger("drivers")
 	Insecure       bool
 )
@@ -103,6 +104,8 @@ func GuessDriver(URL string) (driver string, err error) {
 			driver = "google"
 		case "/dns-query":
 			driver = "rfc8484"
+		case "/d":
+			driver = "dnspod"
 		default:
 			driver = "doh"
 		}

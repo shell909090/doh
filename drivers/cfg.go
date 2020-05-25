@@ -25,6 +25,8 @@ func (header *DriverHeader) CreateClient(body json.RawMessage) (cli Client, err 
 		cli, err = NewGoogleClient(header.URL, body)
 	case "rfc8484":
 		cli, err = NewRfc8484Client(header.URL, body)
+	case "dnspod":
+		cli, err = NewDnsPodClient(header.URL, body)
 	case "twin":
 		cli, err = NewTwinClient(header.URL, body)
 	default:
