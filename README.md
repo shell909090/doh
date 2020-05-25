@@ -133,8 +133,8 @@ source:
 
 # Suggestions
 
-1. Ignore those that have an accuracy less than 4. Ignore those that have a latency more than 30.
-2. 114, alidns, dnspai, dnspod are acceptable in China. baidu, onedns are a bit more than 30.
+1. Ignore those that have an accuracy more than 30. Ignore those that have a latency more than 30.
+2. 114, alidns, cnnic, dnspai, dnspod are acceptable in China. baidu, dyn, google, onedns, opendns are accurate, but the latency are a bit of high.
 3. alidns and dnspod support edns client subnet, and alidns has the most wide protocol supportive in China.
 4. adguard, cloudflare, comodo, google, he, nextdns, opennic, safedns are acceptable in Japan. dnspod are almost 50. opendns are more than 40.
 5. adguard, google support edns client subnet, and they have the most wide protocol supportive in China. cloudflare, nextdns also support 4 protocols, except they don't support edns client subnet.

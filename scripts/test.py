@@ -77,6 +77,18 @@ def repeat_ips(num, cmd):
     return ips
 
 
+def test_available(row):
+    name, prot, url = row
+    driver = prot
+    if prot in ('udp', 'tcp', 'tls'):
+        driver = 'dns'
+    ips = repeat_ips(2, ['bin/doh', '-short', '-insecure', '-driver', driver, '-s', url, 'www.amazon.com'])
+    if not ips:
+        writer.writerow((name, prot, 'not available'))
+    else:
+        return row
+
+
 accuracies = {}
 def test_accuracy(domain):
     global accuracies
@@ -129,7 +141,7 @@ def test_edns_subnet(driver, url):
                           '-subnet', '101.80.0.0', 'www.amazon.com'])
     ips2 = repeat_ips(5, ['bin/doh', '-short', '-insecure', '-driver', driver, '-s', url,
                           '-subnet', '52.88.0.0', 'www.amazon.com'])
-    return not bool(ips1 & ips2)
+    return bool(ips1) and bool(ips2) and not bool(ips1 & ips2)
 
 
 # def test_accuracy_inChina(driver, url):
@@ -157,14 +169,11 @@ def test_all(row):
 
 # def translate_accuracy(pool, rslts):
 #     all_ips, min_ips = {}, {}
-
 #     for _, _, accuracy in rslts:
 #         for domain, ips in accuracy.items():
 #             all_ips[domain] = set(ips) | all_ips.get(domain, set())
-
 #     for domain, ips in all_ips.items():
 #         min_ips[domain] = min(pool.map(ping, ips))
-
 #     for row in rslts:
 #         score = 0
 #         for domain, ips in row[2].items():
@@ -177,16 +186,17 @@ def test_all(row):
 
 
 def main():
-    global servers
-    with open(sys.argv[1]) as fi:
-        reader = csv.reader(fi)
-        servers = [tuple(row) for row in reader]
-    random.shuffle(servers)
-
     global writer
     writer = csv.writer(sys.stdout)
 
+    global servers
+    with open(sys.argv[1]) as fi:
+        servers = [tuple(row) for row in csv.reader(fi)]
+    random.shuffle(servers)
+
     pool = ThreadPool(5)
+
+    servers = [row for row in pool.map(test_available, servers) if row]
     pool.map(test_accuracy, accuracy_domains)
     pool.map(test_all, servers)
 
