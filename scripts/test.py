@@ -31,42 +31,8 @@ def result_parse(p):
             rec = rec.strip()
             yield ipaddress.ip_address(rec)
         except ValueError:
-            if 'ERROR' in rec:
+            if 'ERROR' in rec or 'WARNING' in rec:
                 print(rec, file=sys.stderr)
-
-
-# def cidr_result(ips):
-#     return set([ipaddress.IPv4Network(ip).supernet(8) for ip in ips])
-
-
-ping_cache = {}
-def ping(ip):
-    if ip in ping_cache:
-        return ping_cache[ip]
-    p = subprocess.run(
-        ['ping', '-qc', '10', '-i', '0.2', str(ip)],
-        capture_output=True)
-    for line in p.stdout.decode('utf-8').splitlines():
-        line = line.strip()
-        if not line.startswith('rtt'):
-            continue
-        rtt = line.split('=')[1].split('/')
-        ping_cache[ip] = float(rtt[1])
-        break
-    if ip not in ping_cache:
-        ping_cache[ip] = 10000
-    return ping_cache[ip]
-
-
-# def get_best_answer(urls, domain):
-#     answers = set()
-#     for url in urls:
-#         p = subprocess.run(
-#             ['bin/doh', '-short', '-s', url, domain], capture_output=True)
-#         for ip in result_parse(p):
-#             answers.add(ip)
-#     for ip in answers:
-#         print(ip, ping(ip))
 
 
 def repeat_ips(num, cmd):
@@ -77,39 +43,56 @@ def repeat_ips(num, cmd):
     return ips
 
 
+ping_cache = {}
+def ping(ip):
+    if ip in ping_cache:
+        return ping_cache[ip]
+    p = subprocess.run(
+        ['ping', '-qc', '5', '-i', '0.2', str(ip)],
+        capture_output=True)
+    for line in p.stdout.decode('utf-8').splitlines():
+        line = line.strip()
+        if not line.startswith('rtt'):
+            continue
+        rtt = line.split('=')[1].split('/')
+        ping_cache[ip] = float(rtt[0])  # take the min
+        break
+    if ip not in ping_cache:
+        print(f'ping ip {ip} has no response', file=sys.stderr)
+        ping_cache[ip] = 10000
+    return ping_cache[ip]
+
+
 def test_available(row):
     name, prot, url = row
     driver = prot
     if prot in ('udp', 'tcp', 'tls'):
         driver = 'dns'
-    ips = repeat_ips(2, ['bin/doh', '-short', '-insecure', '-driver', driver, '-s', url, 'www.amazon.com'])
+    ips = repeat_ips(2, ['bin/doh', '-short', '-driver', driver, '-s', url, 'www.amazon.com'])
     if not ips:
         writer.writerow((name, prot, 'not available'))
     else:
-        return row
+        return (name, prot, driver, url)
 
 
 accuracies = {}
 def test_accuracy(domain):
     global accuracies
     rslt = {}
-    avg_latencies = []
-    min_latencies = []
+    avgs, mins = [], []
     for row in servers:
-        name, prot, url = row
-        driver = prot
-        if prot in ('udp', 'tcp', 'tls'):
-            driver = 'dns'
-        latency = [ping(ip) for ip in repeat_ips(3, [
-            'bin/doh', '-short', '-insecure', '-driver', driver, '-s', url, domain])]
-        if not latency:
+        name, prot, driver, url = row
+        ips = repeat_ips(2, ['bin/doh', '-short', '-insecure', '-driver', driver, '-s', url, domain])
+        if not ips:
             print(name, prot, domain, 'fuck off', file=sys.stderr)
-            avg_latencies.append(10000)
+            mins.append(10000)
+            avgs.append(10000)
             continue
-        min_latencies.append(min(latency))
-        avg_latencies.append(sum(latency) / len(latency))
-    min_latency = min(min_latencies)
-    for row, latency in zip(servers, avg_latencies):
+        latency = [ping(ip) for ip in ips]
+        mins.append(min(latency))
+        avgs.append(sum(latency) / len(latency))
+    min_latency = min(mins)
+    for row, latency in zip(servers, avgs):
         rslt[row] = latency/min_latency
     accuracies[domain] = rslt
 
@@ -126,6 +109,8 @@ def test_latency(driver, url):
             latency.append(int(rec.strip().split(':', 1)[1].split()[0]))
     if len(latency) != 0:
         return sum(latency)/len(latency)
+    else:
+        print(f"{driver} {url} has no query time: {p.stdout}", file=sys.stdout)
 
 
 def check_poisoned(driver, url):
@@ -137,25 +122,16 @@ def check_poisoned(driver, url):
 
 
 def test_edns_subnet(driver, url):
-    ips1 = repeat_ips(5, ['bin/doh', '-short', '-insecure', '-driver', driver, '-s', url,
+    ips1 = repeat_ips(3, ['bin/doh', '-short', '-insecure', '-driver', driver, '-s', url,
                           '-subnet', '101.80.0.0', 'www.amazon.com'])
-    ips2 = repeat_ips(5, ['bin/doh', '-short', '-insecure', '-driver', driver, '-s', url,
+    ips2 = repeat_ips(3, ['bin/doh', '-short', '-insecure', '-driver', driver, '-s', url,
                           '-subnet', '52.88.0.0', 'www.amazon.com'])
+    print(f'edns {ips1} {ips2}', file=sys.stderr)
     return bool(ips1) and bool(ips2) and not bool(ips1 & ips2)
 
 
-# def test_accuracy_inChina(driver, url):
-#     r = {}
-#     for domain in accuracy_domains:
-#         r[domain] = repeat_ips(5, ['bin/doh', '-short', '-driver', driver, '-s', url, domain])
-#     return r
-
-
 def test_all(row):
-    name, prot, url = row
-    driver = prot
-    if prot in ('udp', 'tcp', 'tls'):
-        driver = 'dns'
+    name, prot, driver, url = row
     latency = test_latency(driver, url)
     if latency is None:
         writer.writerow((name, prot, 'not available'))
@@ -167,35 +143,16 @@ def test_all(row):
     writer.writerow(rslt + ['%0.2f' % score for score in accuracy])
 
 
-# def translate_accuracy(pool, rslts):
-#     all_ips, min_ips = {}, {}
-#     for _, _, accuracy in rslts:
-#         for domain, ips in accuracy.items():
-#             all_ips[domain] = set(ips) | all_ips.get(domain, set())
-#     for domain, ips in all_ips.items():
-#         min_ips[domain] = min(pool.map(ping, ips))
-#     for row in rslts:
-#         score = 0
-#         for domain, ips in row[2].items():
-#             latency = [ping(ip) for ip in ips]
-#             avg = sum(latency) / len(latency)
-#             score += avg/min_ips[domain]
-#         row = list(row)
-#         row[2] = score
-#         yield row
-
-
 def main():
     global writer
     writer = csv.writer(sys.stdout)
 
     global servers
     with open(sys.argv[1]) as fi:
-        servers = [tuple(row) for row in csv.reader(fi)]
+        servers = list(csv.reader(fi))
     random.shuffle(servers)
 
-    pool = ThreadPool(5)
-
+    pool = ThreadPool(3)
     servers = [row for row in pool.map(test_available, servers) if row]
     pool.map(test_accuracy, accuracy_domains)
     pool.map(test_all, servers)
