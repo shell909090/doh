@@ -126,7 +126,7 @@ def test_edns_subnet(driver, url):
                           '-subnet', '101.80.0.0', 'www.amazon.com'])
     ips2 = repeat_ips(3, ['bin/doh', '-short', '-insecure', '-driver', driver, '-s', url,
                           '-subnet', '52.88.0.0', 'www.amazon.com'])
-    print(f'edns {ips1} {ips2}', file=sys.stderr)
+    print(f'edns {url} {ips1} {ips2}', file=sys.stderr)
     return bool(ips1) and bool(ips2) and not bool(ips1 & ips2)
 
 
