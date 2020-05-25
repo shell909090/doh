@@ -1,3 +1,9 @@
+doh (1.1.0) UNRELEASED; urgency=medium
+
+  * add result testing scripts
+
+ -- Shell.Xu <shell909090@gmail.com>  Mon, 25 May 2020 22:56:43 +0800
+
 doh (1.0.1) unstable; urgency=medium
 
   * new config structures.
