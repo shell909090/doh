@@ -5,7 +5,7 @@
 ## Keywords: 
 ## X-URL: 
 LEVEL=NOTICE
-VERSION=$(shell dpkg-parsechangelog --show-field Version)
+VERSION=$(shell head -n 1 debian/changelog | sed -E 's/.*\((.*)\).*/\1/g')
 GIT_COMMIT=$(shell git rev-list -1 HEAD | head -c 8)
 
 all: clean build
