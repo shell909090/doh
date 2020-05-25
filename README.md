@@ -136,24 +136,25 @@ source:
 
 ## Summary in China
 
-| name | sh tc latency | sh tc accuracy |
-| ---- | ------------- | -------------- |
-| 114 | 17.2 | 12.2 |
-| alidns | 9.2 | 19.7 |
-| baidu | 41.2 | 17.8 |
-| cnnic | 12.2 | 28.3 |
-| dnspai | 6.8 | 17.7 |
-| dnspod | 8.2 | 14.3 |
-| dyn | 36.2 | 42.7 |
-| google | 52.4 | 19.3 |
-| onedns | 39.4 | 13.2 |
-| opendns | 59.2 | 15.8 |
+| name | sh tc latency | sh tc accuracy | sh uc latency | sh uc accuracy |
+| ---- | ------------- | -------------- | ------------- | -------------- |
+| 114 | 17.2 | 12.2 | 274.2 | 20.3 |
+| alidns | 9.2 | 19.7 | 259.2 | 18.0 |
+| baidu | 41.2 | 17.8 | 287.8 | 19.3 |
+| cnnic | 12.2 | 28.3 | 277.0 | 33.6 |
+| dnspai | 6.8 | 17.7 | 265.8 | 19.2 |
+| dnspod | 8.2 | 14.3 | 274.6 | 18.2 |
+| dyn | 36.2 | 42.7 | 256.4 | 80.6 |
+| google | 52.4 | 19.3 | 265.2 | 23.5 |
+| onedns | 39.4 | 13.2 | 257.0 | 18.0 |
+| opendns | 59.2 | 15.8 | 253.8 | 36.4 |
 
 * Ignore those that have an accuracy more than 30.
 * Ignore those that have a latency more than 30.
 * alidns, dnspod, and google support edns client subnet, at least in some way.
 * cnnic hasn't been poisoned, at least not to twitter.
 * alidns has the most wide protocol supportive in China.
+* In China Unicom, sometime the latency of TCP are less than the latency of UDP. Have no idea why it been like that.
 
 ## Summary outside China
 
