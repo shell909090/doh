@@ -12,6 +12,8 @@
   * [doh/http/https](#doh/http/https)
   * [twin](twin)
 * [Public recursive server](#public-recursive-server)
+  * [Summary in China](#summary-in-china)
+  * [Summary outside China](#summary-outside-china)
 * [Suggestions](#suggestions)
 * [TODO](#todo)
 
@@ -131,11 +133,48 @@ source:
 * https://github.com/curl/curl/wiki/DNS-over-HTTPS
 * https://www.publicdns.xyz/
 
+## Summary in China
+
+| name | sh tc latency | sh tc accuracy |
+| ---- | ------------- | -------------- |
+| 114 | 17.2 | 12.2 |
+| alidns | 9.2 | 19.7 |
+| baidu | 41.2 | 17.8 |
+| cnnic | 12.2 | 28.3 |
+| dnspai | 6.8 | 17.7 |
+| dnspod | 8.2 | 14.3 |
+| dyn | 36.2 | 42.7 |
+| google | 52.4 | 19.3 |
+| onedns | 39.4 | 13.2 |
+| opendns | 59.2 | 15.8 |
+
+* Ignore those that have an accuracy more than 30.
+* Ignore those that have a latency more than 30.
+* alidns, dnspod, and google support edns client subnet, at least in some way.
+* cnnic hasn't been poisoned, at least not to twitter.
+* alidns has the most wide protocol supportive in China.
+
+## Summary outside China
+
+| name | jp latency | jp accuracy | seattle latency | seattle accuracy |
+| ---- | ---------- | ----------- | --------------- | ---------------- |
+| adguard | 0.0 | 13.8 | 0.0 | 214.4 |
+| cloudflare | 1.6 | 16.1 | 0.8 | 215.6 |
+| containerpi | 71.8 | 16.3 | 367.4 | 1454.7 |
+| google | 4.4 | 13.4 | 41.4 | 225.511 |
+| he | 0.2 | 18.2 | 4.4 | 11.7 |
+| nextdns | 0.4 | 12.9 | 0.6 | 14864.2 |
+| opendns | 3.4 | 13.4 | 36.8 | 219.376 |
+| quad9 | 110.0 | 1194.3 | 0.6 | 214.9 |
+| safedns | 72.6 | 12.9 | 0.8 | 213.2 |
+
+* Ignore those that have an accuracy more than 30.
+* Ignore those that have a latency more than 30.
+* google support edns client subnet.
+* Most of the dns get a dramaticly high score in seattle accuracy test, because they get the same result for tmall. `47.246.24.233`. `he` get a very close result, which is `47.246.18.236`. The latency of `47.246.24.233` is 66.7, and the latency of `47.246.18.236` is 0.6.
+
 # Suggestions
 
-1. Ignore those that have an accuracy more than 30. Ignore those that have a latency more than 30.
-2. 114, alidns, cnnic, dnspai, dnspod are acceptable in China. baidu, dyn, google, onedns, opendns are accurate, but the latency are a bit of high.
-3. alidns and dnspod support edns client subnet, and alidns has the most wide protocol supportive in China.
 4. adguard, cloudflare, comodo, google, he, nextdns, opennic, safedns are acceptable in Japan. dnspod are almost 50. opendns are more than 40.
 5. adguard, google support edns client subnet, and they have the most wide protocol supportive in China. cloudflare, nextdns also support 4 protocols, except they don't support edns client subnet.
 6. Seattle has almost the same situation as Japan. Except dyn becomes acceptable, and opennic becomes unacceptable.
