@@ -52,7 +52,7 @@ def ping(ip):
         capture_output=True)
     for line in p.stdout.decode('utf-8').splitlines():
         line = line.strip()
-        if not line.startswith('rtt'):
+        if not line.startswith('rtt') and not line.startswith('round-trip'):
             continue
         rtt = line.split('=')[1].split('/')
         ping_cache[ip] = float(rtt[0])  # take the min
@@ -88,6 +88,7 @@ def test_accuracy(domain):
             mins.append(10000)
             avgs.append(10000)
             continue
+        # print(f'accuracy {domain} by {url} ips: {ips}', file=sys.stderr)
         latency = [ping(ip) for ip in ips]
         mins.append(min(latency))
         avgs.append(sum(latency) / len(latency))
@@ -126,7 +127,7 @@ def test_edns_subnet(driver, url):
                           '-subnet', '101.80.0.0', 'www.taobao.com'])
     ips2 = repeat_ips(3, ['bin/doh', '-short', '-insecure', '-driver', driver, '-s', url,
                           '-subnet', '52.88.0.0', 'www.taobao.com'])
-    print(f'edns {url} {ips1} {ips2}', file=sys.stderr)
+    # print(f'edns {url} {ips1} {ips2}', file=sys.stderr)
     return bool(ips1) and bool(ips2) and not bool(ips1 & ips2)
 
 
@@ -152,7 +153,7 @@ def main():
         servers = list(csv.reader(fi))
     random.shuffle(servers)
 
-    pool = ThreadPool(3)
+    pool = ThreadPool(100)
     servers = [row for row in pool.map(test_available, servers) if row]
     pool.map(test_accuracy, accuracy_domains)
     pool.map(test_all, servers)
