@@ -6,16 +6,23 @@
 @copyright: 2020, Shell.Xu <shell909090@gmail.com>
 @license: BSD-3-clause
 '''
+import re
 import sys
 import csv
 
+accuracy_domains = [
+    'taobao', 'tmall', 'qq', 'baidu', 'sohu', 'jd',
+    'amazon', 'bing', 'linkedin', 'weibo', 'meituan']
+
 def main():
-    print(f'| vendor | protocol | latency | poisoned | edns client subnet | accuracy |')
-    print(f'| ------ | -------- | ------- | -------- | ------------------ | -------- |')
+    re_name = re.compile('[a-z\-]')
+    s = f'| vendor | protocol | latency | poisoned | edns-client-subnet | accuracy | %s |' % ' | '.join(accuracy_domains)
+    print(s)
+    print(re_name.sub('-', s))
     with open(sys.argv[1]) as fi:
         reader = csv.reader(fi)
-        for name, prot, latency, poisoned, edns_subnet, accuracy in reader:
-            print(f'| {name} | {prot} | {latency} | {poisoned} | {edns_subnet} | {accuracy} |')
+        for row in reader:
+            print('| %s |' % ' | '.join(row))
 
 
 if __name__ == '__main__':
