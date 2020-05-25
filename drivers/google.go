@@ -111,8 +111,6 @@ func (cli *GoogleClient) Exchange(ctx context.Context, quiz *dns.Msg) (ans *dns.
 
 type GoogleHandler struct {
 	EdnsClientSubnet string
-	clientAddr       net.IP
-	clientMask       uint8
 	cli              Client
 }
 
@@ -120,13 +118,6 @@ func NewGoogleHandler(cli Client, EdnsClientSubnet string) (handler *GoogleHandl
 	handler = &GoogleHandler{
 		EdnsClientSubnet: EdnsClientSubnet,
 		cli:              cli,
-	}
-	if EdnsClientSubnet != "" && EdnsClientSubnet != "client" {
-		handler.clientAddr, handler.clientMask, err = ParseSubnet(EdnsClientSubnet)
-		if err != nil {
-			logger.Error(err.Error())
-			return
-		}
 	}
 	return
 }
@@ -153,29 +144,9 @@ func (handler *GoogleHandler) ServeHTTP(w http.ResponseWriter, req *http.Request
 	quiz.SetQuestion(dns.Fqdn(name), qtype)
 
 	ecs := req.Form.Get("edns_client_subnet")
-	var addr net.IP
-	var mask uint8
-	switch {
-	case ecs != "":
-		addr, mask, err = ParseSubnet(ecs)
-		if err != nil {
-			logger.Error(err.Error())
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
-		AppendEdns0Subnet(quiz, addr, mask)
-
-	case handler.EdnsClientSubnet == "client":
-		addr, mask, err = ParseSubnet(req.RemoteAddr)
-		if err != nil {
-			logger.Error(err.Error())
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
-		AppendEdns0Subnet(quiz, addr, mask)
-
-	case handler.EdnsClientSubnet != "":
-		AppendEdns0Subnet(quiz, handler.clientAddr, handler.clientMask)
+	err = HttpSetEdns0Subnet(w, req, ecs, handler.EdnsClientSubnet, quiz)
+	if err != nil {
+		return
 	}
 
 	if req.Form.Get("do") != "" {
@@ -229,6 +200,39 @@ func (handler *GoogleHandler) ServeHTTP(w http.ResponseWriter, req *http.Request
 		return
 	}
 
+	return
+}
+
+func HttpSetEdns0Subnet(w http.ResponseWriter, req *http.Request, ecs1, ecs2 string, quiz *dns.Msg) (err error) {
+	var addr net.IP
+	var mask uint8
+	switch {
+	case ecs1 != "":
+		addr, mask, err = ParseSubnet(ecs1)
+		if err != nil {
+			logger.Error(err.Error())
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		AppendEdns0Subnet(quiz, addr, mask)
+
+	case ecs2 == "client":
+		addr, mask, err = ParseSubnet(req.RemoteAddr)
+		if err != nil {
+			logger.Error(err.Error())
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		AppendEdns0Subnet(quiz, addr, mask)
+
+	case ecs2 != "":
+		addr, mask, err = ParseSubnet(ecs2)
+		if err != nil {
+			panic(err.Error())
+			return
+		}
+		AppendEdns0Subnet(quiz, addr, mask)
+	}
 	return
 }
 

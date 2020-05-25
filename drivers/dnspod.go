@@ -3,6 +3,8 @@ package drivers
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"io"
 	"io/ioutil"
 	"net"
 	"net/http"
@@ -122,5 +124,67 @@ func (cli *DnsPodClient) Exchange(ctx context.Context, quiz *dns.Msg) (ans *dns.
 		ans.Extra = append(ans.Extra, opt)
 	}
 
+	return
+}
+
+type DnsPodHandler struct {
+	EdnsClientSubnet string
+	cli              Client
+}
+
+func NewDnsPodHandler(cli Client, EdnsClientSubnet string) (handler *DnsPodHandler, err error) {
+	handler = &DnsPodHandler{
+		EdnsClientSubnet: EdnsClientSubnet,
+		cli:              cli,
+	}
+	return
+}
+
+func (handler *DnsPodHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	var err error
+	defer req.Body.Close()
+
+	err = req.ParseForm()
+	if err != nil {
+		logger.Error(err.Error())
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	quiz := &dns.Msg{}
+	name := req.Form.Get("dn")
+	quiz.SetQuestion(dns.Fqdn(name), dns.TypeA)
+
+	ecs := req.Form.Get("ip")
+	err = HttpSetEdns0Subnet(w, req, ecs, handler.EdnsClientSubnet, quiz)
+	if err != nil {
+		return
+	}
+
+	logger.Infof("dnspod server query: %s", quiz.Question[0].Name)
+
+	ctx := context.Background()
+	ans, err := handler.cli.Exchange(ctx, quiz)
+	if err != nil {
+		logger.Error(err.Error())
+		w.WriteHeader(http.StatusBadGateway)
+		return
+	}
+
+	isttl := req.Form.Get("ttl")
+	var secs []string
+	for _, rr := range ans.Answer {
+		switch v := rr.(type) {
+		case *dns.A:
+			if isttl == "" {
+				secs = append(secs, v.A.String())
+			} else {
+				secs = append(secs, fmt.Sprintf("%s,%d", v.A.String(), v.Hdr.Ttl))
+			}
+		}
+	}
+
+	w.WriteHeader(http.StatusOK)
+	io.WriteString(w, strings.Join(secs, ";"))
 	return
 }
