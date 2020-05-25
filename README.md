@@ -171,7 +171,7 @@ source:
 * Ignore those that have an accuracy more than 30.
 * Ignore those that have a latency more than 30.
 * google support edns client subnet.
-* Most of the dns get a dramaticly high score in seattle accuracy test, because they get the same result for tmall. `47.246.24.233`. `he` get a very close result, which is `47.246.18.236`. The latency of `47.246.24.233` is 66.7, and the latency of `47.246.18.236` is 0.6.
+* Most of the dns get a dramatically high score in seattle accuracy test, because they get the same result for tmall. `47.246.24.233`. `he` get a very close result, which is `47.246.18.236`. The latency of `47.246.24.233` is 66.7, and the latency of `47.246.18.236` is 0.6.
 
 # Suggestions
 

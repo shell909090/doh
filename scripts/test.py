@@ -70,7 +70,7 @@ def test_available(row):
         driver = 'dns'
     ips = repeat_ips(2, ['bin/doh', '-short', '-driver', driver, '-s', url, 'www.amazon.com'])
     if not ips:
-        writer.writerow((name, prot, 'not available'))
+        writer.writerow((name, prot, 'not available', '', '', '', '', '', '', '', '', '', '', '', '', '', ''))
     else:
         return (name, prot, driver, url)
 
@@ -134,7 +134,7 @@ def test_all(row):
     name, prot, driver, url = row
     latency = test_latency(driver, url)
     if latency is None:
-        writer.writerow((name, prot, 'not available'))
+        writer.writerow((name, prot, 'not available', '', '', '', '', '', '', '', '', '', '', '', '', '', ''))
         return
     poisoned = 'Yes' if check_poisoned(driver, url) else 'No'
     edns_subnet = 'Yes' if test_edns_subnet(driver, url) else 'No'
