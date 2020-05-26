@@ -7,31 +7,47 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"time"
 
 	"github.com/miekg/dns"
 )
 
 type DnsClient struct {
-	URL  string
-	host string
-	cli  *dns.Client
+	URL     string
+	Timeout int
+	host    string
+	cli     *dns.Client
 }
 
-func NewDnsClient(URL string) (cli *DnsClient) {
+func NewDnsClient(URL string, body json.RawMessage) (cli *DnsClient) {
+	cli = &DnsClient{}
+	if body != nil {
+		err := json.Unmarshal(body, &cli)
+		if err != nil {
+			panic(err.Error())
+		}
+	}
+	cli.URL = URL
+
+	if Timeout != 0 {
+		cli.Timeout = Timeout
+	}
+
 	u, err := url.Parse(URL)
 	if err != nil {
 		panic(err.Error())
 	}
-
 	GuessPort(u)
 
-	cli = &DnsClient{
-		host: u.Host,
-		URL:  URL,
-		cli: &dns.Client{
-			Net: u.Scheme,
-		},
+	cli.host = u.Host
+	cli.cli = &dns.Client{
+		Net: u.Scheme,
 	}
+
+	if cli.Timeout != 0 {
+		cli.cli.Timeout = time.Duration(cli.Timeout) * time.Millisecond
+	}
+
 	return
 }
 
@@ -75,6 +91,16 @@ func NewDnsServer(cli Client, URL string, body json.RawMessage) (srv *DnsServer)
 			return
 		}
 	}
+
+	if srv.CertFile != "" && srv.CertKeyFile != "" {
+		var cert tls.Certificate
+		cert, err = tls.LoadX509KeyPair(srv.CertFile, srv.CertKeyFile)
+		if err != nil {
+			panic(err.Error)
+		}
+		srv.cert = &cert
+	}
+
 	return
 }
 
@@ -128,12 +154,17 @@ func (srv *DnsServer) ServeDNS(w dns.ResponseWriter, quiz *dns.Msg) {
 }
 
 func (srv *DnsServer) Serve() (err error) {
-	// FIXME: cert? https://godoc.org/github.com/miekg/dns#Server
 	server := &dns.Server{
 		Net:     srv.net,
 		Addr:    srv.addr,
 		Handler: srv,
 	}
+	if srv.cert != nil {
+		server.TLSConfig = &tls.Config{
+			Certificates: []tls.Certificate{*srv.cert},
+		}
+	}
+
 	logger.Infof("dns server start. listen in %s://%s", srv.net, srv.addr)
 	err = server.ListenAndServe()
 	return

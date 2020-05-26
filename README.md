@@ -70,9 +70,15 @@ There are three different protocols in driver `dns`:
 
 This driver can be used in both client and server settings.
 
+Client Config:
+
+* timeout: as its name.
+
 Server Config:
 
 * ednsclientsubnet: as its name.
+* certfile: file path of certificates.
+* certkeyfile: file path of key.
 
 ## rfc8484
 

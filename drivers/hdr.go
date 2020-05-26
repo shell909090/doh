@@ -20,7 +20,7 @@ func (header *DriverHeader) CreateClient(body json.RawMessage) (cli Client) {
 
 	switch header.Driver {
 	case "dns":
-		cli = NewDnsClient(header.URL)
+		cli = NewDnsClient(header.URL, body)
 	case "google":
 		cli = NewGoogleClient(header.URL, body)
 	case "rfc8484":

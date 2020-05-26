@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/miekg/dns"
@@ -21,16 +22,15 @@ const (
 )
 
 var (
-	ErrConfigParse = errors.New("config parse error")
-	ErrParameter   = errors.New("parameter error")
-	logger         = logging.MustGetLogger("")
-	FmtShort       bool
-	FmtJson        bool
-	QType          string
-	Subnet         string
+	ErrConfigParse        = errors.New("config parse error")
+	ErrParameter          = errors.New("parameter error")
+	logger                = logging.MustGetLogger("")
+	Version        string = "unknown"
 	Driver         string
 	URL            string
-	Version        string = "unknown"
+	FmtShort       bool
+	FmtJson        bool
+	Microseconds   bool
 )
 
 type Config struct {
@@ -56,6 +56,8 @@ func (cfg *Config) CreateClient() (cli drivers.Client) {
 		header.Driver = Driver
 	}
 
+	// TODO: if it's totally empty, driver, url. read from resolve.conf
+
 	cli = header.CreateClient(cfg.Client)
 
 	return
@@ -75,33 +77,45 @@ func (cfg *Config) CreateService(cli drivers.Client) (srv drivers.Server) {
 	return
 }
 
-func QueryDN(cli drivers.Client, dn string) (err error) {
+func NewQuiz(dn, QType, QClass, Subnet string) (quiz *dns.Msg) {
+	var err error
+
 	qtype, ok := dns.StringToType[QType]
 	if !ok {
 		err = ErrParameter
-		return
+		panic(err.Error())
 	}
 
-	ctx := context.Background()
-	quiz := &dns.Msg{}
+	quiz = &dns.Msg{}
 	quiz.SetQuestion(dns.Fqdn(dn), qtype)
+
+	if QClass != "" {
+		qclass, ok := dns.StringToClass[QClass]
+		if !ok {
+			err = ErrParameter
+			panic(err.Error())
+		}
+		quiz.Question[0].Qclass = qclass
+	}
 
 	if Subnet != "" {
 		var addr net.IP
 		var mask uint8
 		addr, mask, err = drivers.ParseSubnet(Subnet)
 		if err != nil {
-			logger.Error(err.Error())
-			return
+			panic(err.Error())
 		}
 		drivers.AppendEdns0Subnet(quiz, addr, mask)
 	}
+	return
+}
 
+func QueryDN(cli drivers.Client, quiz *dns.Msg) (err error) {
+	ctx := context.Background()
 	start := time.Now()
 
 	ans, err := cli.Exchange(ctx, quiz)
 	if err != nil {
-		logger.Error(err.Error())
 		return
 	}
 
@@ -124,14 +138,12 @@ func QueryDN(cli drivers.Client, dn string) (err error) {
 		jsonresp := &drivers.DNSMsg{}
 		err = jsonresp.FromAnswer(quiz, ans)
 		if err != nil {
-			logger.Error(err.Error())
 			return
 		}
 
 		var bresp []byte
 		bresp, err = json.Marshal(jsonresp)
 		if err != nil {
-			logger.Error(err.Error())
 			return
 		}
 
@@ -139,7 +151,11 @@ func QueryDN(cli drivers.Client, dn string) (err error) {
 
 	default:
 		fmt.Println(ans.String())
-		fmt.Printf(";; Query time: %d msec\n", elapsed.Milliseconds())
+		if Microseconds {
+			fmt.Printf(";; Query time: %d usec\n", elapsed.Microseconds())
+		} else {
+			fmt.Printf(";; Query time: %d msec\n", elapsed.Milliseconds())
+		}
 		fmt.Printf(";; SERVER: %s\n", cli.Url())
 		fmt.Printf(";; WHEN: %s\n\n", start.Format(time.UnixDate))
 	}
@@ -147,31 +163,37 @@ func QueryDN(cli drivers.Client, dn string) (err error) {
 	return
 }
 
-// -c class
 // -f batch mode
 // -i reverse
-// -u print query times in microseconds instead of milliseconds.
 // trace
+// tries
+// norecurse
 
 func main() {
 	var err error
-	var ConfigFile string
-	var Profile string
-	var AliasesFile string
 	var ShowVersion bool
+	var ConfigFile string
+	var AliasesFile string
+	var Profile string
 	var Query bool
+	var Subnet string
+	var QType string
+	var QClass string
+	flag.BoolVar(&ShowVersion, "version", false, "show version")
 	flag.StringVar(&ConfigFile, "config", "", "config file")
 	flag.StringVar(&AliasesFile, "alias", "", "aliases file")
 	flag.StringVar(&Profile, "profile", "", "run profile")
-	flag.BoolVar(&FmtShort, "short", false, "show short answer")
-	flag.BoolVar(&FmtJson, "json", false, "show json answer")
-	flag.StringVar(&Subnet, "subnet", "", "edns client subnet")
-	flag.BoolVar(&Query, "q", false, "force do query")
-	flag.StringVar(&QType, "t", "A", "resource record type to query.")
 	flag.StringVar(&Driver, "driver", "", "client driver")
 	flag.StringVar(&URL, "s", "", "server url to query")
+	flag.StringVar(&Subnet, "subnet", "", "edns client subnet")
 	flag.BoolVar(&drivers.Insecure, "insecure", false, "don't check cert in https")
-	flag.BoolVar(&ShowVersion, "version", false, "show version")
+	flag.IntVar(&drivers.Timeout, "timeout", 0, "query timeout")
+	flag.BoolVar(&Query, "q", false, "force do query")
+	flag.StringVar(&QType, "t", "A", "resource record type to query.")
+	flag.StringVar(&QClass, "c", "", "resource record class to query.")
+	flag.BoolVar(&FmtShort, "short", false, "show short answer")
+	flag.BoolVar(&FmtJson, "json", false, "show json answer")
+	flag.BoolVar(&Microseconds, "u", false, "print query times in microseconds instead of milliseconds")
 	flag.Parse()
 
 	if ShowVersion {
@@ -186,6 +208,28 @@ func main() {
 	}
 	drivers.SetLogging(cfg.Logfile, cfg.Loglevel)
 
+	var dnlist []string
+	for _, p := range flag.Args() {
+		_, typeok := dns.StringToType[p]
+		_, classok := dns.StringToClass[p]
+		switch {
+		case strings.HasPrefix(p, "@"):
+			if URL == "" {
+				URL = p[1:]
+			}
+		case typeok:
+			if QType == "" {
+				QType = p
+			}
+		case classok:
+			if QClass == "" {
+				QClass = p
+			}
+		default:
+			dnlist = append(dnlist, p)
+		}
+	}
+
 	var Aliases map[string]string
 	drivers.LoadJson(DEFAULT_ALIASES, &Aliases, true)
 	if AliasesFile != "" {
@@ -193,6 +237,10 @@ func main() {
 	}
 	if AliasURL, ok := Aliases[URL]; ok {
 		URL = AliasURL
+	}
+
+	if !strings.Contains(URL, "://") {
+		URL = "udp://" + URL
 	}
 
 	cli := cfg.CreateClient()
@@ -217,8 +265,12 @@ func main() {
 		}
 
 	default:
-		for _, dn := range flag.Args() {
-			QueryDN(cli, dn)
+		for _, dn := range dnlist {
+			quiz := NewQuiz(dn, QType, QClass, Subnet)
+			err = QueryDN(cli, quiz)
+			if err != nil {
+				logger.Error(err.Error())
+			}
 		}
 	}
 

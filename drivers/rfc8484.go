@@ -38,8 +38,8 @@ func NewRfc8484Client(URL string, body json.RawMessage) (cli *Rfc8484Client) {
 			panic(err.Error())
 		}
 	}
-
 	cli.URL = URL
+
 	if Insecure {
 		cli.Insecure = Insecure
 	}

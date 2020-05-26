@@ -10,6 +10,9 @@ function short() {
     bin/doh -short -s cftls www.baidu.com
     bin/doh -short -s cfdoh www.baidu.com
     bin/doh -short -s gdnstls www.baidu.com
+    bin/doh -short @114 www.baidu.com
+    bin/doh -short @114 NS baidu.com
+    bin/doh -short @114 IN baidu.com
     bin/doh -short -q -config data/twin.json www.baidu.com
 }
 

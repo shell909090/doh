@@ -23,6 +23,7 @@ var (
 	ErrBadQtype    = errors.New("wrong or unsupported qtype")
 	logger         = logging.MustGetLogger("drivers")
 	Insecure       bool
+	Timeout        int
 )
 
 type Client interface {
