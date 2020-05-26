@@ -7,17 +7,42 @@ import (
 	"io"
 	"math/rand"
 	"net"
+	"os"
 	"testing"
 
-	"github.com/shell909090/doh/drivers"
+	logging "github.com/op/go-logging"
 )
 
 const (
 	IPLIST = "10.0.0.0 255.0.0.0\n172.16.0.0 255.240.0.0\n192.168.0.0 255.255.0.0"
 )
 
+func SetLogging(logfile, loglevel string) (err error) {
+	var file *os.File
+	file = os.Stdout
+
+	if loglevel == "" {
+		loglevel = "WARNING"
+	}
+	if logfile != "" {
+		file, err = os.OpenFile(logfile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0600)
+		if err != nil {
+			panic(err.Error())
+		}
+	}
+	logging.SetBackend(logging.NewLogBackend(file, "", 0))
+	logging.SetFormatter(logging.MustStringFormatter(
+		"%{time:01-02 15:04:05.000}[%{level}] %{shortpkg}/%{shortfile}: %{message}"))
+	lv, err := logging.LogLevel(loglevel)
+	if err != nil {
+		panic(err.Error())
+	}
+	logging.SetLevel(lv, "")
+	return
+}
+
 func init() {
-	drivers.SetLogging("", "ERROR")
+	SetLogging("", "ERROR")
 }
 
 func genIP() (ip net.IP) {

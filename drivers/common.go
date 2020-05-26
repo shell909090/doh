@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net"
+	"net/http"
 	"net/url"
 	"os"
 	"os/user"
@@ -34,18 +35,15 @@ type Server interface {
 }
 
 func LoadJson(configfiles string, cfg interface{}, ignore_notexist bool) {
-	var err error
-	var file *os.File
 	for _, conf := range strings.Split(configfiles, ";") {
 		if strings.HasPrefix(conf, "~/") {
 			usr, _ := user.Current()
 			conf = filepath.Join(usr.HomeDir, conf[2:])
 		}
 
-		file, err = os.Open(conf)
+		file, err := os.Open(conf)
 		if err != nil {
 			if ignore_notexist {
-				err = nil
 				continue
 			}
 			panic(err.Error())
@@ -174,5 +172,37 @@ func ParseSubnet(subnet string) (ip net.IP, mask uint8, err error) {
 	}
 	one, _ := ipnet.Mask.Size()
 	mask = uint8(one)
+	return
+}
+
+func HttpSetEdns0Subnet(w http.ResponseWriter, req *http.Request, ecs1, ecs2 string, quiz *dns.Msg) (err error) {
+	var addr net.IP
+	var mask uint8
+	switch {
+	case ecs1 != "":
+		addr, mask, err = ParseSubnet(ecs1)
+		if err != nil {
+			logger.Error(err.Error())
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		AppendEdns0Subnet(quiz, addr, mask)
+
+	case ecs2 == "client":
+		addr, mask, err = ParseSubnet(req.RemoteAddr)
+		if err != nil {
+			logger.Error(err.Error())
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		AppendEdns0Subnet(quiz, addr, mask)
+
+	case ecs2 != "":
+		addr, mask, err = ParseSubnet(ecs2)
+		if err != nil {
+			panic(err.Error())
+		}
+		AppendEdns0Subnet(quiz, addr, mask)
+	}
 	return
 }

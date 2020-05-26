@@ -19,13 +19,12 @@ type DnsPodClient struct {
 	transport *http.Transport
 }
 
-func NewDnsPodClient(URL string, body json.RawMessage) (cli *DnsPodClient, err error) {
+func NewDnsPodClient(URL string, body json.RawMessage) (cli *DnsPodClient) {
 	cli = &DnsPodClient{}
 	if body != nil {
-		err = json.Unmarshal(body, &cli)
+		err := json.Unmarshal(body, &cli)
 		if err != nil {
-			logger.Error(err.Error())
-			return
+			panic(err.Error())
 		}
 	}
 
@@ -132,7 +131,7 @@ type DnsPodHandler struct {
 	cli              Client
 }
 
-func NewDnsPodHandler(cli Client, EdnsClientSubnet string) (handler *DnsPodHandler, err error) {
+func NewDnsPodHandler(cli Client, EdnsClientSubnet string) (handler *DnsPodHandler) {
 	handler = &DnsPodHandler{
 		EdnsClientSubnet: EdnsClientSubnet,
 		cli:              cli,
@@ -141,10 +140,9 @@ func NewDnsPodHandler(cli Client, EdnsClientSubnet string) (handler *DnsPodHandl
 }
 
 func (handler *DnsPodHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	var err error
 	defer req.Body.Close()
 
-	err = req.ParseForm()
+	err := req.ParseForm()
 	if err != nil {
 		logger.Error(err.Error())
 		w.WriteHeader(http.StatusBadRequest)

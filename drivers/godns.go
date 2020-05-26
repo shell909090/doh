@@ -2,7 +2,9 @@ package drivers
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
+	"fmt"
 	"net"
 	"net/url"
 
@@ -15,12 +17,10 @@ type DnsClient struct {
 	cli  *dns.Client
 }
 
-func NewDnsClient(URL string) (cli *DnsClient, err error) {
-	var u *url.URL
-	u, err = url.Parse(URL)
+func NewDnsClient(URL string) (cli *DnsClient) {
+	u, err := url.Parse(URL)
 	if err != nil {
-		logger.Error(err.Error())
-		return
+		panic(err.Error())
 	}
 
 	GuessPort(u)
@@ -46,19 +46,18 @@ func (cli *DnsClient) Exchange(ctx context.Context, quiz *dns.Msg) (ans *dns.Msg
 
 type DnsServer struct {
 	EdnsClientSubnet string
+	CertFile         string
+	CertKeyFile      string
 	net              string
 	addr             string
-	clientAddr       net.IP
-	clientMask       uint8
+	cert             *tls.Certificate
 	cli              Client
 }
 
-func NewDnsServer(cli Client, URL string, body json.RawMessage) (srv *DnsServer, err error) {
-	var u *url.URL
-	u, err = url.Parse(URL)
+func NewDnsServer(cli Client, URL string, body json.RawMessage) (srv *DnsServer) {
+	u, err := url.Parse(URL)
 	if err != nil {
-		logger.Error(err.Error())
-		return
+		panic(err.Error())
 	}
 
 	GuessPort(u)
@@ -76,22 +75,36 @@ func NewDnsServer(cli Client, URL string, body json.RawMessage) (srv *DnsServer,
 			return
 		}
 	}
-
-	if srv.EdnsClientSubnet != "" {
-		srv.clientAddr, srv.clientMask, err = ParseSubnet(srv.EdnsClientSubnet)
-		if err != nil {
-			logger.Error(err.Error())
-			return
-		}
-	}
 	return
 }
 
 func (srv *DnsServer) ServeDNS(w dns.ResponseWriter, quiz *dns.Msg) {
 	logger.Infof("dns server query: %s", quiz.Question[0].Name)
 
-	if srv.clientAddr != nil {
-		AppendEdns0Subnet(quiz, srv.clientAddr, srv.clientMask)
+	var addr net.IP
+	var mask uint8
+	var err error
+	switch srv.EdnsClientSubnet {
+	case "":
+	case "client":
+		raddr := w.RemoteAddr()
+		switch taddr := raddr.(type) {
+		case *net.TCPAddr:
+			addr = taddr.IP
+		case *net.UDPAddr:
+			addr = taddr.IP
+		default:
+			panic(fmt.Sprintf("unknown addr %s", raddr.Network()))
+		}
+		mask = 32
+		AppendEdns0Subnet(quiz, addr, mask)
+
+	default:
+		addr, mask, err = ParseSubnet(srv.EdnsClientSubnet)
+		if err != nil {
+			panic(err.Error())
+		}
+		AppendEdns0Subnet(quiz, addr, mask)
 	}
 
 	ctx := context.Background()
@@ -115,7 +128,7 @@ func (srv *DnsServer) ServeDNS(w dns.ResponseWriter, quiz *dns.Msg) {
 }
 
 func (srv *DnsServer) Serve() (err error) {
-	// FIXME: cert?
+	// FIXME: cert? https://godoc.org/github.com/miekg/dns#Server
 	server := &dns.Server{
 		Net:     srv.net,
 		Addr:    srv.addr,

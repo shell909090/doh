@@ -40,13 +40,12 @@ type Config struct {
 	Client   json.RawMessage
 }
 
-func (cfg *Config) CreateClient() (cli drivers.Client, err error) {
+func (cfg *Config) CreateClient() (cli drivers.Client) {
 	var header drivers.DriverHeader
 	if cfg.Client != nil {
-		err = json.Unmarshal(cfg.Client, &header)
+		err := json.Unmarshal(cfg.Client, &header)
 		if err != nil {
-			logger.Error(err.Error())
-			return
+			panic(err.Error())
 		}
 	}
 
@@ -57,31 +56,22 @@ func (cfg *Config) CreateClient() (cli drivers.Client, err error) {
 		header.Driver = Driver
 	}
 
-	cli, err = header.CreateClient(cfg.Client)
-	if err != nil {
-		logger.Error(err.Error())
-		return
-	}
+	cli = header.CreateClient(cfg.Client)
 
 	return
 }
 
-func (cfg *Config) CreateService(cli drivers.Client) (srv drivers.Server, err error) {
+func (cfg *Config) CreateService(cli drivers.Client) (srv drivers.Server) {
+	var err error
 	var header drivers.DriverHeader
 	if cfg.Service != nil {
 		err = json.Unmarshal(cfg.Service, &header)
 		if err != nil {
-			logger.Error(err.Error())
-			return
+			panic(err.Error())
 		}
 	}
 
-	srv, err = header.CreateService(cli, cfg.Service)
-	if err != nil {
-		logger.Error(err.Error())
-		return
-	}
-
+	srv = header.CreateService(cli, cfg.Service)
 	return
 }
 
@@ -205,12 +195,7 @@ func main() {
 		URL = AliasURL
 	}
 
-	cli, err := cfg.CreateClient()
-	if err != nil {
-		logger.Error(err.Error())
-		return
-	}
-
+	cli := cfg.CreateClient()
 	logger.Debugf("%+v", cli)
 
 	switch {
@@ -224,12 +209,7 @@ func main() {
 		}
 
 		var srv drivers.Server
-		srv, err = cfg.CreateService(cli)
-		if err != nil {
-			logger.Error(err.Error())
-			return
-		}
-
+		srv = cfg.CreateService(cli)
 		err = srv.Serve()
 		if err != nil {
 			logger.Error(err.Error())

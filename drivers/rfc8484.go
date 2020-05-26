@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"io"
 	"io/ioutil"
-	"net"
 	"net/http"
 
 	"github.com/miekg/dns"
@@ -31,13 +30,12 @@ type Rfc8484Client struct {
 	transport *http.Transport
 }
 
-func NewRfc8484Client(URL string, body json.RawMessage) (cli *Rfc8484Client, err error) {
+func NewRfc8484Client(URL string, body json.RawMessage) (cli *Rfc8484Client) {
 	cli = &Rfc8484Client{}
 	if body != nil {
-		err = json.Unmarshal(body, &cli)
+		err := json.Unmarshal(body, &cli)
 		if err != nil {
-			logger.Error(err.Error())
-			return
+			panic(err.Error())
 		}
 	}
 
@@ -104,22 +102,13 @@ func (cli *Rfc8484Client) Exchange(ctx context.Context, quiz *dns.Msg) (ans *dns
 
 type Rfc8484Handler struct {
 	EdnsClientSubnet string
-	clientAddr       net.IP
-	clientMask       uint8
 	cli              Client
 }
 
-func NewRfc8484Handler(cli Client, EdnsClientSubnet string) (handler *Rfc8484Handler, err error) {
+func NewRfc8484Handler(cli Client, EdnsClientSubnet string) (handler *Rfc8484Handler) {
 	handler = &Rfc8484Handler{
 		EdnsClientSubnet: EdnsClientSubnet,
 		cli:              cli,
-	}
-	if EdnsClientSubnet != "" && EdnsClientSubnet != "client" {
-		handler.clientAddr, handler.clientMask, err = ParseSubnet(EdnsClientSubnet)
-		if err != nil {
-			logger.Error(err.Error())
-			return
-		}
 	}
 	return
 }
@@ -167,21 +156,9 @@ func (handler *Rfc8484Handler) ServeHTTP(w http.ResponseWriter, req *http.Reques
 		return
 	}
 
-	switch handler.EdnsClientSubnet {
-	case "":
-	case "client":
-		var addr net.IP
-		var mask uint8
-		addr, mask, err = ParseSubnet(req.RemoteAddr)
-		if err != nil {
-			logger.Error(err.Error())
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
-		AppendEdns0Subnet(quiz, addr, mask)
-
-	default:
-		AppendEdns0Subnet(quiz, handler.clientAddr, handler.clientMask)
+	err = HttpSetEdns0Subnet(w, req, "", handler.EdnsClientSubnet, quiz)
+	if err != nil {
+		return
 	}
 
 	logger.Infof("rfc8484 server query: %s", quiz.Question[0].Name)

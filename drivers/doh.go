@@ -16,12 +16,10 @@ type DoHServer struct {
 	mux              *http.ServeMux
 }
 
-func NewDoHServer(cli Client, URL string, body json.RawMessage) (srv *DoHServer, err error) {
-	var u *url.URL
-	u, err = url.Parse(URL)
+func NewDoHServer(cli Client, URL string, body json.RawMessage) (srv *DoHServer) {
+	u, err := url.Parse(URL)
 	if err != nil {
-		logger.Error(err.Error())
-		return
+		panic(err.Error())
 	}
 
 	srv = &DoHServer{
@@ -34,31 +32,13 @@ func NewDoHServer(cli Client, URL string, body json.RawMessage) (srv *DoHServer,
 	if body != nil {
 		err = json.Unmarshal(body, &srv)
 		if err != nil {
-			logger.Error(err.Error())
-			return
+			panic(err.Error())
 		}
 	}
 
-	rfc8484h, err := NewRfc8484Handler(cli, srv.EdnsClientSubnet)
-	if err != nil {
-		logger.Error(err.Error())
-		return
-	}
-	srv.mux.Handle("/dns-query", rfc8484h)
-
-	googleh, err := NewGoogleHandler(cli, srv.EdnsClientSubnet)
-	if err != nil {
-		logger.Error(err.Error())
-		return
-	}
-	srv.mux.Handle("/resolve", googleh)
-
-	dnspodh, err := NewDnsPodHandler(cli, srv.EdnsClientSubnet)
-	if err != nil {
-		logger.Error(err.Error())
-		return
-	}
-	srv.mux.Handle("/d", dnspodh)
+	srv.mux.Handle("/dns-query", NewRfc8484Handler(cli, srv.EdnsClientSubnet))
+	srv.mux.Handle("/resolve", NewGoogleHandler(cli, srv.EdnsClientSubnet))
+	srv.mux.Handle("/d", NewDnsPodHandler(cli, srv.EdnsClientSubnet))
 	return
 }
 

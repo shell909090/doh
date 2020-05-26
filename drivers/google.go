@@ -28,13 +28,12 @@ type GoogleClient struct {
 	transport *http.Transport
 }
 
-func NewGoogleClient(URL string, body json.RawMessage) (cli *GoogleClient, err error) {
+func NewGoogleClient(URL string, body json.RawMessage) (cli *GoogleClient) {
 	cli = &GoogleClient{}
 	if body != nil {
-		err = json.Unmarshal(body, &cli)
+		err := json.Unmarshal(body, &cli)
 		if err != nil {
-			logger.Error(err.Error())
-			return
+			panic(err.Error())
 		}
 	}
 
@@ -114,7 +113,7 @@ type GoogleHandler struct {
 	cli              Client
 }
 
-func NewGoogleHandler(cli Client, EdnsClientSubnet string) (handler *GoogleHandler, err error) {
+func NewGoogleHandler(cli Client, EdnsClientSubnet string) (handler *GoogleHandler) {
 	handler = &GoogleHandler{
 		EdnsClientSubnet: EdnsClientSubnet,
 		cli:              cli,
@@ -123,10 +122,9 @@ func NewGoogleHandler(cli Client, EdnsClientSubnet string) (handler *GoogleHandl
 }
 
 func (handler *GoogleHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	var err error
 	defer req.Body.Close()
 
-	err = req.ParseForm()
+	err := req.ParseForm()
 	if err != nil {
 		logger.Error(err.Error())
 		w.WriteHeader(http.StatusBadRequest)
@@ -200,39 +198,6 @@ func (handler *GoogleHandler) ServeHTTP(w http.ResponseWriter, req *http.Request
 		return
 	}
 
-	return
-}
-
-func HttpSetEdns0Subnet(w http.ResponseWriter, req *http.Request, ecs1, ecs2 string, quiz *dns.Msg) (err error) {
-	var addr net.IP
-	var mask uint8
-	switch {
-	case ecs1 != "":
-		addr, mask, err = ParseSubnet(ecs1)
-		if err != nil {
-			logger.Error(err.Error())
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
-		AppendEdns0Subnet(quiz, addr, mask)
-
-	case ecs2 == "client":
-		addr, mask, err = ParseSubnet(req.RemoteAddr)
-		if err != nil {
-			logger.Error(err.Error())
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
-		AppendEdns0Subnet(quiz, addr, mask)
-
-	case ecs2 != "":
-		addr, mask, err = ParseSubnet(ecs2)
-		if err != nil {
-			panic(err.Error())
-			return
-		}
-		AppendEdns0Subnet(quiz, addr, mask)
-	}
 	return
 }
 

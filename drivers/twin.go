@@ -18,49 +18,34 @@ type TwinClient struct {
 	dir_routes    *iplist.IPList
 }
 
-func NewTwinClient(URL string, body json.RawMessage) (cli *TwinClient, err error) {
+func NewTwinClient(URL string, body json.RawMessage) (cli *TwinClient) {
+	var err error
 	cli = &TwinClient{}
 	if body != nil {
 		err = json.Unmarshal(body, &cli)
 		if err != nil {
-			logger.Error(err.Error())
-			return
+			panic(err.Error())
 		}
 	}
 
 	var header DriverHeader
 	err = json.Unmarshal(cli.Primary, &header)
 	if err != nil {
-		logger.Error(err.Error())
-		return
+		panic(err.Error())
 	}
-
-	cli.primary_cli, err = header.CreateClient(cli.Primary)
-	if err != nil {
-		logger.Error(err.Error())
-		return
-	}
-
+	cli.primary_cli = header.CreateClient(cli.Primary)
 	logger.Debugf("primary: %+v", cli.primary_cli)
 
 	err = json.Unmarshal(cli.Secondary, &header)
 	if err != nil {
-		logger.Error(err.Error())
-		return
+		panic(err.Error())
 	}
-
-	cli.secondary_cli, err = header.CreateClient(cli.Secondary)
-	if err != nil {
-		logger.Error(err.Error())
-		return
-	}
-
+	cli.secondary_cli = header.CreateClient(cli.Secondary)
 	logger.Debugf("secondary: %+v", cli.secondary_cli)
 
 	cli.dir_routes, err = iplist.ReadIPListFile(cli.DirectRoutes)
 	if err != nil {
-		logger.Error(err.Error())
-		return
+		panic(err.Error())
 	}
 
 	return
