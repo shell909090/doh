@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"math/rand"
 	"net"
 	"net/http"
 	"net/url"
@@ -11,6 +12,7 @@ import (
 	"os/user"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/miekg/dns"
 	logging "github.com/op/go-logging"
@@ -33,6 +35,10 @@ type Client interface {
 
 type Server interface {
 	Serve() (err error)
+}
+
+func init() {
+	rand.Seed(time.Now().UnixNano())
 }
 
 func LoadJson(configfiles string, cfg interface{}, ignore_notexist bool) {

@@ -80,8 +80,12 @@ func main() {
 		drivers.LoadJson(ConfigFile, cfg, false)
 	}
 
-	if Loglevel != "" {
+	switch {
+	case Loglevel != "":
 		cfg.Loglevel = Loglevel
+	case cfg.Loglevel != "":
+	case q.Trace:
+		cfg.Loglevel = "INFO"
 	}
 	drivers.SetLogging(cfg.Logfile, cfg.Loglevel)
 
