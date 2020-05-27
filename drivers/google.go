@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/miekg/dns"
 )
@@ -25,6 +26,7 @@ func ParseUint(s string) (n uint64) {
 type GoogleClient struct {
 	URL       string
 	Insecure  bool
+	Timeout   int
 	transport *http.Transport
 }
 
@@ -40,6 +42,9 @@ func NewGoogleClient(URL string, body json.RawMessage) (cli *GoogleClient) {
 	cli.URL = URL
 	if Insecure {
 		cli.Insecure = Insecure
+	}
+	if Timeout != 0 {
+		cli.Timeout = Timeout
 	}
 
 	cli.transport = &http.Transport{
@@ -57,6 +62,10 @@ func (cli *GoogleClient) Url() (u string) {
 }
 
 func (cli *GoogleClient) Exchange(ctx context.Context, quiz *dns.Msg) (ans *dns.Msg, err error) {
+	if cli.Timeout != 0 {
+		ctx, _ = context.WithTimeout(ctx, time.Duration(cli.Timeout)*time.Millisecond)
+	}
+
 	req, err := http.NewRequestWithContext(ctx, "GET", cli.URL, nil)
 	if err != nil {
 		logger.Error(err.Error())

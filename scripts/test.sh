@@ -1,19 +1,44 @@
 #!/bin/bash
 
-function query() {
-    bin/doh -s udp://114.114.114.114 www.baidu.com
+function basic() {
+    echo "version"
+    bin/doh -version
+    echo "resolv.conf"
+    bin/doh www.baidu.com
+    echo "short"
+    bin/doh -short www.baidu.com
+    echo "json"
+    bin/doh -json www.baidu.com | jq -r '.Answer[].data'
+    echo "url"
+    bin/doh -short -s udp://114.114.114.114 www.baidu.com
+    echo "tcp"
+    bin/doh -short -tcp -s 114.114.114.114 www.baidu.com
+    echo "alias"
+    bin/doh -short -s 114 www.baidu.com
+    echo "at server"
+    bin/doh -short @114 www.baidu.com
+    echo "retries"
+    bin/doh -short -tries 3 @114 @114t www.baidu.com
+    echo "QType"
+    bin/doh -short -t NS @114 baidu.com
+    bin/doh -short @114 NS baidu.com
+    echo "QClass"
+    bin/doh -short -c IN @114 www.baidu.com
+    bin/doh -short @114 IN www.baidu.com
+    echo "timeout"
+    bin/doh -s 114 -timeout 1 www.baidu.com
+    echo "query with config"
+    bin/doh -short -q -config data/twin.json www.baidu.com
 }
 
-function short() {
+function drivers() {
+    echo "drivers, except google"
     bin/doh -short -s 114 www.baidu.com
     bin/doh -short -s 114t www.baidu.com
     bin/doh -short -s cftls www.baidu.com
     bin/doh -short -s cfdoh www.baidu.com
     bin/doh -short -s gdnstls www.baidu.com
-    bin/doh -short @114 www.baidu.com
-    bin/doh -short @114 NS baidu.com
-    bin/doh -short @114 IN baidu.com
-    bin/doh -short -q -config data/twin.json www.baidu.com
+    bin/doh -short -s http://119.29.29.29/d www.baidu.com
 }
 
 function edns() {

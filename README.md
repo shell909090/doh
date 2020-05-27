@@ -91,6 +91,7 @@ This driver can only be used in client setting.
 Client Config:
 
 * insecure: don't check the certificates.
+* timeout: as its name.
 
 ## google
 
@@ -103,6 +104,7 @@ This driver can only be used in client setting.
 Client Config:
 
 * insecure: don't check the certificates.
+* timeout: as its name.
 
 ## doh/http/https
 

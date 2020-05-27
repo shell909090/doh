@@ -16,7 +16,7 @@ import pprint
 
 from multiprocessing.pool import ThreadPool
 
-# 101.0.0.0/8 // sh telecom
+# 101.80.0.0/12 // sh telecom
 # 52.88.0.0/13 // aws canada
 # 104.244.40.0/21 // twitter
 
@@ -153,7 +153,7 @@ def main():
         servers = list(csv.reader(fi))
     random.shuffle(servers)
 
-    pool = ThreadPool(100)
+    pool = ThreadPool(10)
     servers = [row for row in pool.map(test_available, servers) if row]
     pool.map(test_accuracy, accuracy_domains)
     pool.map(test_all, servers)

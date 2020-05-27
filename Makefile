@@ -38,8 +38,8 @@ build-deb:
 	mv -f ../doh_* debuild
 
 testquery:
-	scripts/test.sh query
-	scripts/test.sh short
+	scripts/test.sh basic
+	scripts/test.sh drivers
 	scripts/test.sh edns
 	scripts/test.sh rfc8484
 	scripts/test.sh google

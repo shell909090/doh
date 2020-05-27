@@ -9,6 +9,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"time"
 
 	"github.com/miekg/dns"
 )
@@ -27,6 +28,7 @@ func WriteFull(w io.Writer, b []byte) (err error) {
 type Rfc8484Client struct {
 	URL       string
 	Insecure  bool
+	Timeout   int
 	transport *http.Transport
 }
 
@@ -42,6 +44,9 @@ func NewRfc8484Client(URL string, body json.RawMessage) (cli *Rfc8484Client) {
 
 	if Insecure {
 		cli.Insecure = Insecure
+	}
+	if Timeout != 0 {
+		cli.Timeout = Timeout
 	}
 
 	cli.transport = &http.Transport{
@@ -62,6 +67,10 @@ func (cli *Rfc8484Client) Exchange(ctx context.Context, quiz *dns.Msg) (ans *dns
 	if err != nil {
 		logger.Error(err.Error())
 		return
+	}
+
+	if cli.Timeout != 0 {
+		ctx, _ = context.WithTimeout(ctx, time.Duration(cli.Timeout)*time.Millisecond)
 	}
 
 	req, err := http.NewRequestWithContext(ctx, "POST", cli.URL, bytes.NewBuffer(bquiz))

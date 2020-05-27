@@ -29,9 +29,12 @@ func (header *DriverHeader) CreateClient(body json.RawMessage) (cli Client) {
 		cli = NewDnsPodClient(header.URL, body)
 	case "twin":
 		cli = NewTwinClient(header.URL, body)
+	case "reties":
+		cli = NewRetiesClient(header.URL, body)
+	case "recursive":
+		cli = NewRecursiveClient()
 	default:
-		err = ErrConfigParse
-		panic(err.Error())
+		panic("unknown driver")
 	}
 
 	return

@@ -49,7 +49,7 @@
     "nextdns": "udp://45.90.28.253/",
     "nextdnst": "tcp://45.90.28.253/",
     "nexttls": "tcp-tls://76dc6f.dns.nextdns.io/",
-    "nextdnh": "https://dns.nextdns.io/e83b12",
+    "nextdoh": "https://dns.nextdns.io/e83b12",
     "onedns": "udp://117.50.11.11/",
     "opendns": "udp://208.67.222.222/",
     "opendnst": "tcp://208.67.222.222/",
