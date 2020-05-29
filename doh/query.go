@@ -157,6 +157,7 @@ func (q *Query) NewQuiz(dn string) (quiz *dns.Msg) {
 
 	quiz = &dns.Msg{}
 	quiz.SetQuestion(dns.Fqdn(dn), qtype)
+	quiz.SetEdns0(4096, true)
 	if q.NoRecurse {
 		quiz.MsgHdr.RecursionDesired = false
 	}

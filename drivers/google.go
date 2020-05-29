@@ -429,6 +429,8 @@ func (jr *DNSRR) Translate() (rr dns.RR) {
 		rr = &dns.SPF{
 			Txt: strings.Split(jr.Data, " "),
 		}
+	case dns.TypeOPT:
+		rr = &dns.OPT{} // FIXME: dummy
 	case dns.TypeDS:
 		parts := strings.Split(jr.Data, " ")
 		if len(parts) < 4 {
@@ -523,6 +525,8 @@ func (jr *DNSRR) Translate() (rr dns.RR) {
 			SaltLength: uint8(ParseUint(parts[3])),
 			Salt:       parts[4],
 		}
+	default:
+		panic(fmt.Sprintf("unknown type %s", jr.Type))
 	}
 	hdr := &dns.RR_Header{
 		Name:     jr.Name,

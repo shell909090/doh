@@ -193,6 +193,3 @@ source:
 # TODO
 
 * cache
-* record dns logs
-* multiple outputs, load balance
-

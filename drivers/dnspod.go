@@ -152,6 +152,7 @@ func (handler *DnsPodHandler) ServeHTTP(w http.ResponseWriter, req *http.Request
 	quiz := &dns.Msg{}
 	name := req.Form.Get("dn")
 	quiz.SetQuestion(dns.Fqdn(name), dns.TypeA)
+	quiz.SetEdns0(4096, true)
 
 	ecs := req.Form.Get("ip")
 	err = HttpSetEdns0Subnet(w, req, ecs, handler.EdnsClientSubnet, quiz)
