@@ -11,7 +11,6 @@ bin
 pkg
 key
 debuild
-gopath
 
 debian/*.debhelper
 debian/debhelper-build-stamp

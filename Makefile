@@ -7,20 +7,18 @@
 LEVEL=NOTICE
 VERSION=$(shell head -n 1 debian/changelog | sed -E 's/.*\((.*)\).*/\1/g')
 GIT_COMMIT=$(shell git rev-list -1 HEAD | head -c 8)
+GOPATH:=$(shell pwd)/gopath:$(GOPATH)
 
 all: clean build
 
 clean:
-	rm -rf bin pkg gopath debuild *.log
+	rm -rf bin pkg debuild *.log
 
 build: bin/doh
 
 bin/doh:
-	mkdir -p gopath/src/github.com/shell909090/
-	ln -s "$$PWD" gopath/src/github.com/shell909090/doh
 	mkdir -p bin
-	GOPATH="$$PWD/gopath":"$$GOPATH" go build -o bin/doh -ldflags "-X main.Version=$(VERSION)-$(GIT_COMMIT)" github.com/shell909090/doh/doh
-	rm -rf gopath
+	go build -o bin/doh -ldflags "-X main.Version=$(VERSION)-$(GIT_COMMIT)" github.com/shell909090/doh/doh
 
 install: bin/doh
 	install -d $(DESTDIR)/usr/bin/
