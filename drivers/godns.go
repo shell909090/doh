@@ -136,6 +136,7 @@ func (srv *DnsServer) ServeDNS(w dns.ResponseWriter, quiz *dns.Msg) {
 	ctx := context.Background()
 	ans, err := srv.cli.Exchange(ctx, quiz)
 	if err != nil {
+		// FIXME: google dns not 2xx or 3xx
 		logger.Error(err.Error())
 		return
 	}

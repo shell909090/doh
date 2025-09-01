@@ -68,7 +68,6 @@ func (cli *GoogleClient) Exchange(ctx context.Context, quiz *dns.Msg) (ans *dns.
 
 	req, err := http.NewRequestWithContext(ctx, "GET", cli.URL, nil)
 	if err != nil {
-		logger.Error(err.Error())
 		return
 	}
 
@@ -92,7 +91,6 @@ func (cli *GoogleClient) Exchange(ctx context.Context, quiz *dns.Msg) (ans *dns.
 
 	resp, err := cli.transport.RoundTrip(req)
 	if err != nil {
-		logger.Error(err.Error())
 		return
 	}
 	defer resp.Body.Close()
@@ -105,13 +103,11 @@ func (cli *GoogleClient) Exchange(ctx context.Context, quiz *dns.Msg) (ans *dns.
 	jsonresp := &DNSMsg{}
 	err = json.NewDecoder(resp.Body).Decode(&jsonresp)
 	if err != nil {
-		logger.Error(err.Error())
 		return
 	}
 
 	ans, err = jsonresp.TranslateAnswer(quiz)
 	if err != nil {
-		logger.Error(err.Error())
 		return
 	}
 
@@ -264,9 +260,20 @@ func (msg *DNSMsg) TranslateAnswer(quiz *dns.Msg) (ans *dns.Msg, err error) {
 			})
 	}
 
-	TranslateRRs(&msg.Answer, &ans.Answer)
-	TranslateRRs(&msg.Authority, &ans.Ns)
-	TranslateRRs(&msg.Additional, &ans.Extra)
+	err = TranslateRRs(&msg.Answer, &ans.Answer)
+	if err != nil {
+		return
+	}
+
+	err = TranslateRRs(&msg.Authority, &ans.Ns)
+	if err != nil {
+		return
+	}
+
+	err = TranslateRRs(&msg.Additional, &ans.Extra)
+	if err != nil {
+		return
+	}
 
 	if msg.Edns_client_subnet != "" {
 		var addr net.IP
@@ -282,13 +289,18 @@ func (msg *DNSMsg) TranslateAnswer(quiz *dns.Msg) (ans *dns.Msg, err error) {
 	return
 }
 
-func TranslateRRs(jrs *[]DNSRR, rrs *[]dns.RR) {
+func TranslateRRs(jrs *[]DNSRR, rrs *[]dns.RR) (err error) {
+	var rr dns.RR
 	for _, jr := range *jrs {
-		rr := jr.Translate()
+		rr, err = jr.Translate()
+		if err != nil {
+			return
+		}
 		if rr != nil {
 			*rrs = append(*rrs, rr)
 		}
 	}
+	return
 }
 
 func (msg *DNSMsg) FromAnswer(quiz, ans *dns.Msg) (err error) {
@@ -334,7 +346,7 @@ func FromRRs(jrs *[]DNSRR, rrs *[]dns.RR) {
 	}
 }
 
-func (jr *DNSRR) Translate() (rr dns.RR) {
+func (jr *DNSRR) Translate() (rr dns.RR, err error) {
 	switch uint16(jr.Type) {
 	case dns.TypeA:
 		rr = &dns.A{
@@ -527,7 +539,9 @@ func (jr *DNSRR) Translate() (rr dns.RR) {
 			Salt:       parts[4],
 		}
 	default:
-		panic(fmt.Sprintf("unknown type %s", jr.Type))
+		// panic(fmt.Sprintf("unknown type %s", jr.Type))
+		err = ErrBadQtype
+		return
 	}
 	hdr := &dns.RR_Header{
 		Name:     jr.Name,
