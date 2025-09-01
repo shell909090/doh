@@ -88,6 +88,7 @@ func (cli *GoogleClient) Exchange(ctx context.Context, quiz *dns.Msg) (ans *dns.
 	}
 
 	req.URL.RawQuery = query.Encode()
+	logger.Debugf("query: %s", req.URL.RawQuery)
 
 	resp, err := cli.transport.RoundTrip(req)
 	if err != nil {

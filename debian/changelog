@@ -1,8 +1,10 @@
-doh (1.1.0) UNRELEASED; urgency=medium
+doh (1.1.0) unstable; urgency=medium
 
-  * add result testing scripts
+  * add result testing scripts.
+  * migrate to golang 1.24.
+  * fix edns-client-subnet not working issue.
 
- -- Shell.Xu <shell909090@gmail.com>  Mon, 25 May 2020 22:56:43 +0800
+ -- Shell.Xu <shell909090@gmail.com>  Tue, 02 Sep 2025 00:03:32 +0800
 
 doh (1.0.1) unstable; urgency=medium
 

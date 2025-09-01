@@ -61,7 +61,7 @@ func (cli *DnsClient) Exchange(ctx context.Context, quiz *dns.Msg) (ans *dns.Msg
 }
 
 type DnsServer struct {
-	EdnsClientSubnet string
+	EdnsClientSubnet string `json:"edns-client-subnet"`
 	CertFile         string
 	CertKeyFile      string
 	net              string
