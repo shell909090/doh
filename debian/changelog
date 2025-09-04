@@ -1,3 +1,9 @@
+doh (1.1.1) UNRELEASED; urgency=medium
+
+  * fix "can't parse subnet" issue
+
+ -- Shell.Xu <shell909090@gmail.com>  Thu, 04 Sep 2025 11:12:36 +0800
+
 doh (1.1.0) unstable; urgency=medium
 
   * add result testing scripts.

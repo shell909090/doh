@@ -165,7 +165,8 @@ func ParseSubnet(subnet string) (ip net.IP, mask uint8, err error) {
 	ip, ipnet, err := net.ParseCIDR(subnet)
 	if err != nil {
 		err = nil
-		ip = net.ParseIP(subnet)
+		ipstring := strings.SplitN(subnet, "/", 2)[0]
+		ip = net.ParseIP(ipstring)
 		switch {
 		case ip == nil:
 			err = ErrParseSubnet

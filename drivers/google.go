@@ -280,7 +280,7 @@ func (msg *DNSMsg) TranslateAnswer(quiz *dns.Msg) (ans *dns.Msg, err error) {
 		var mask uint8
 		addr, mask, err = ParseSubnet(msg.Edns_client_subnet)
 		if err != nil {
-			logger.Error(err.Error())
+			logger.Errorf("can't parse subnet %s", msg.Edns_client_subnet)
 			return
 		}
 		AppendEdns0Subnet(ans, addr, mask)
